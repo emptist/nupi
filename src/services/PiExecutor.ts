@@ -1,6 +1,6 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import { logger } from 'nezha';
+import { logger } from '@emptist/nezha';
 
 const execAsync = promisify(exec);
 

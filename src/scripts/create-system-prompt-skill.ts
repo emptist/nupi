@@ -1,4 +1,4 @@
-import { DatabaseClient, Config } from 'nezha';
+import { DatabaseClient, Config } from '@emptist/nezha';
 
 const skillContent = {
   instructions: `## System Prompt Push Skill

@@ -1,4 +1,4 @@
-import { logger } from 'nezha';
+import { logger } from '@emptist/nezha';
 
 export interface PiTaskResult {
   success: boolean;

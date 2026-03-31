@@ -1,10 +1,13 @@
 {
-  "name": "nupi",
+  "name": "@emptist/nupi",
   "version": "0.1.0",
   "description": "NuPI - AI-driven autonomous development system extension for Pi",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/index.ts",
@@ -14,10 +17,10 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@emptist/nezha": "^0.1.0",
     "@mariozechner/pi-coding-agent": "^0.63.0",
     "axios": "^1.13.6",
     "dotenv": "^17.3.1",
-    "nezha": "file:../nezha",
     "uuid": "^13.0.0"
   },
   "devDependencies": {
