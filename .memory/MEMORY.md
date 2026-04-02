@@ -35,8 +35,33 @@ NuPI = Pi + Nezha (二合一)
 | `src/services/PiSDKExecutor.ts` | SDK 方式执行 |
 | `src/services/TraeAutoRecoveryService.ts` | Trae 集成 |
 | `src/services/TraeSkillSyncService.ts` | Trae 技能同步 |
+| `src/services/NuPIHeartbeatService.ts` | 心跳服务（复用 nezha） |
 | `extensions/nupi-tools.ts` | Pi 扩展命令 |
 | `extensions/nupi-autowork.ts` | 自动工作循环 |
+
+## npm nezha 可复用功能
+
+**重要**：通过 `npm link nezha` 后，可以直接使用 nezha 导出的功能：
+
+```typescript
+// 复用 nezha 的心跳服务
+import { HeartbeatService, Config } from 'nezha';
+import { DatabaseClient } from 'nezha/dist/db/DatabaseClient.js';
+
+const db = new DatabaseClient(Config.getInstance());
+const heartbeat = new HeartbeatService(db, {
+  heartbeatIntervalMs: 60000,
+  enableReminder: true,
+});
+await heartbeat.start();
+```
+
+**nezha 导出的可用功能**：
+- `HeartbeatService` - 心跳服务
+- `Config` - 配置管理
+- `logger` - 日志
+- `TASK_STATUS`, `DATABASE_TABLES` - 常量
+- `ReminderTemplateService` - 提醒模板
 
 ## Pi 扩展命令
 
