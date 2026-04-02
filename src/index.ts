@@ -4,17 +4,13 @@
  * 本地二合一 AI 协作系统
  *
  * @package @nezha/nupi
- *
- * Usage in Pi:
- * ```typescript
- * import nezhaTools from './extensions/nezha-tools.js';
- * import nezhaAutoWork from './extensions/nezha-autowork.js';
- *
- * // Register extensions
- * pi.register(nezhaTools);
- * pi.register(nezhaAutoWork);
- * ```
  */
+
+import { PiExecutor } from './services/PiExecutor.js';
+import { PiSDKExecutor } from './services/PiSDKExecutor.js';
+
+export { PiExecutor, type PiTaskResult, type PiConfig } from './services/PiExecutor.js';
+export { PiSDKExecutor } from './services/PiSDKExecutor.js';
 
 export interface NuPIConfig {
   dbHost: string;
@@ -27,6 +23,7 @@ export interface NuPIConfig {
 export function createNuPI(config: NuPIConfig) {
   return {
     config,
-    // TODO: 初始化 NuPI 核心
+    PiExecutor,
+    PiSDKExecutor,
   };
 }
