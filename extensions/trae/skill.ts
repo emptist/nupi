@@ -1,3 +1,5 @@
-// // [AUTO-FIXED] [AUTO-FIXED] [AUTO-FIXED] TODO - 2026-03-15 - 2026-03-14 - 2026
-  -03-14
-// [AUTO-FIXED] [AUTO-FIXED] TODO - 2026-03-15 - 2026-03-14: Implement 实现 缺少文件: extensions/trae/skill.ts
+import type { ExtensionAPI } from '@mariozechner/pi-coding-agent';
+
+export default function traeSkill(pi: ExtensionAPI): void {
+  console.log('[Trae] Skill extension loaded');
+}
