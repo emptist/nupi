@@ -6,8 +6,10 @@
 
 - Node.js 20+
 - PostgreSQL (nezha database)
-- Pi (TUI) installed
+- Pi (TUI) installed (optional, only for TUI mode)
 - npm link to nezha: `npm link nezha`
+
+**NuPI is independent** - no MCP, no OpenCode dependency required!
 
 ### Setup
 
