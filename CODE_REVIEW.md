@@ -19,52 +19,72 @@ Architecture: Pi (TUI frontend) + Nezha (backend services/PostgreSQL) = 二合�
 |-------|--------|
 | npm link to nezha | ✅ Linked correctly |
 | TypeScript typecheck | ✅ Passes |
-| Build | ⚠️ Not tested (vitest missing) |
+| Build | ✅ Works |
+| vitest installed | ✅ Added |
+| .gitignore updated | ✅ Fixed |
 
 ---
 
-## Issues Found
+## Issues Found & Fixed
 
-### 🔴 Critical
+### ✅ Fixed
+
+| # | Issue | Location | Status |
+|---|-------|----------|--------|
+| 1 | `vitest` not in devDependencies | package.json | ✅ Fixed |
+| 2 | `dist/` not in .gitignore | .gitignore | ✅ Fixed |
+| 3 | `.nezha/` not in .gitignore | .gitignore | ✅ Fixed |
+| 4 | `.tmp/` not in .gitignore | .gitignore | ✅ Fixed |
+| 5 | `extensions/trae/skill.ts` empty | extensions/trae/skill.ts | ✅ Fixed |
+| 6 | Command naming inconsistency (nezha-* vs nupi-*) | extensions/ | ✅ Fixed |
+| 7 | Outdated path `~/gits/hub/nezha/nupi` | docs/DEVELOPER.md | ✅ Fixed |
+| 8 | Duplicate docs/README.md | docs/ | ✅ Fixed |
+| 9 | Pi extension files in `~/.pi/agent/extensions/` outdated | ~/.pi/agent/ | ✅ Fixed |
+
+### 🔴 Still Open
+
+| # | Issue | Location | Severity |
+|---|-------|----------|----------|
+| 1 | CLI binaries missing shebang `#!` | nezha src/cli/index.ts | Critical |
+
+### 🟡 Medium Priority
 
 | # | Issue | Location |
 |---|-------|----------|
-| 1 | `vitest` not in devDependencies - `npm run test` fails | package.json |
-| 2 | `dist/` directory not in .gitignore - built files may be committed | .gitignore |
-
-### 🟡 Medium
-
-| # | Issue | Location |
-|---|-------|----------|
-| 1 | `extensions/trae/skill.ts` only contains auto-fix comments, no actual code | extensions/trae/skill.ts |
-| 2 | `src/index.ts` - `createNuPI()` is TODO only, returns empty object | src/index.ts:30 |
-| 3 | Default DB credentials hardcoded in `nezha-autowork.ts` | extensions/nezha-autowork.ts:41 |
-
-### 🟢 Low / Cleanup
-
-| # | Issue | Location |
-|---|-------|----------|
-| 1 | `.nezha/` directory not in .gitignore (already untracked) | .gitignore |
+| 1 | `src/index.ts` - `createNuPI()` is TODO only | src/index.ts |
+| 2 | API keys exposed in `~/.pi/agent/models.json` | ~/.pi/agent/models.json |
 
 ---
 
-## Quick Fixes
+## Documentation Cleanup Completed
 
-```bash
-# 1. Add vitest dependency
-npm install -D vitest
+| File | Change |
+|------|--------|
+| `.memory/MEMORY.md` | Updated with clear AI identity, unified command names |
+| `AGENTS.NuPI.md` | Added collaboration guidelines, cross-AI communication |
+| `README.md` | Fixed command names (nupi-*), updated paths |
+| `docs/DEVELOPER.md` | Fixed outdated path |
+| `extensions/nezha-*.ts` | Renamed to `nupi-*.ts` |
+| `docs/README.md` | Deleted (duplicate) |
 
-# 2. Update .gitignore
-cat >> .gitignore << 'EOF'
-dist/
-.nezha/
-EOF
+---
 
-# 3. Build the project
-npm run build
+## Pi Extension Files (Two Locations)
 
-# 4. Run tests
-npm run test
+Extensions are in **two locations** - must sync both:
+
+| Location | Purpose |
+|----------|---------|
+| `/Users/jk/gits/hub/tools_ai/nupi/extensions/` | Source code (git tracked) |
+| `~/.pi/agent/extensions/` | Runtime (deployed) |
+
+### Files in `~/.pi/agent/extensions/`:
+
+```
+nupi-tools.ts       # ✅ Fixed function name
+nupi-autowork.ts    # ✅ Fixed function name
+AGENTS.md           # ✅ Updated
+README.md           # ✅ Updated
 ```
 
 ---
@@ -79,8 +99,8 @@ npm run test
 
 ### ⚠️ Improvements Needed
 - Implement `createNuPI()` in `src/index.ts`
-- Complete `extensions/trae/skill.ts`
-- Externalize hardcoded credentials to env vars
+- Complete `extensions/trae/skill.ts` or remove the directory
+- Add tests for core services
 
 ---
 
@@ -91,11 +111,11 @@ npm run test
 | nezha | ^0.1.0 | dependency |
 | pg | ^8.11.0 | dependency |
 | @mariozechner/pi-coding-agent | >=0.63.0 | peerDependency |
-| vitest | missing | devDependency |
+| vitest | ✅ installed | devDependency |
 
 ---
 
-## File Structure
+## File Structure (Current)
 
 ```
 nupi/
@@ -104,17 +124,20 @@ nupi/
 │   ├── nezha-blind-loop.ts         # Periodic task checker
 │   └── services/
 │       ├── PiExecutor.ts           # CLI-based executor
-│       ├── PiSDKExecutor.ts        # SDK-based executor
+│       ├── PiSDKExecutor.ts       # SDK-based executor
 │       ├── TraeSkillSyncService.ts # Sync skills to Trae
 │       └── TraeAutoRecoveryService.ts # Auto-recovery for failed tasks
 ├── extensions/
-│   ├── nezha-tools.ts              # Pi commands: nupi-tasks, nupi-learn, etc.
-│   ├── nezha-autowork.ts           # Continuous work loop
+│   ├── nupi-tools.ts              # ✅ Renamed from nezha-tools.ts
+│   ├── nupi-autowork.ts          # ✅ Renamed from nezha-autowork.ts
 │   └── trae/
-│       └── skill.ts                # EMPTY - needs implementation
+│       └── skill.ts               # ✅ Fixed (placeholder)
 ├── skills/
-│   └── nupi-abc.md                 # AI knowledge base
+│   └── nupi-abc.md               # AI knowledge base
+├── .memory/
+│   └── MEMORY.md                 # AI identity and knowledge
 ├── docs/
+│   └── DEVELOPER.md              # ✅ Fixed path
 ├── package.json
 └── tsconfig.json
 ```
@@ -123,7 +146,27 @@ nupi/
 
 ## Recommendations
 
-1. **Immediate**: Add vitest to devDependencies and update .gitignore
+1. **Immediate**: Fix CLI shebang in nezha (create issue for nezha AI)
 2. **Short-term**: Implement `createNuPI()` core functionality
-3. **Medium-term**: Complete `trae/skill.ts` or remove the directory
-4. **Long-term**: Consider environment variable validation on startup
+3. **Medium-term**: Complete or remove `trae/skill.ts`
+4. **Long-term**: Consider deployment automation for Pi extensions
+
+---
+
+## AI Collaboration
+
+NuPI communicates with other AIs via shared PostgreSQL:
+
+```bash
+# Check broadcasts
+node ./node_modules/.bin/nezha broadcasts list
+
+# Share updates
+node ./node_modules/.bin/nezha share "message"
+
+# Create issues/tasks
+node ./node_modules/.bin/nezha areflect "[ISSUE] title: ..."
+
+# Check tasks
+node ./node_modules/.bin/nezha tasks --status PENDING
+```
