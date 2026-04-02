@@ -106,6 +106,27 @@ npm run build      # 构建
 npm run test       # 测试
 ```
 
+## GitHub 同步服务
+
+**GitHub 同步服务** (emptist/nezha#11):
+- 高优先级 (critical/high) issues 自动同步到 GitHub
+- 解决 450+ pending issues 噪声问题
+- 人类可见，易于参与
+- 使用 `[ISSUE] severity:high` 触发同步
+
+**双渠道 Issue 系统**:
+- GitHub: 用于讨论和人类可见
+- nezha DB: 用于任务追踪和 AI 协作
+
+## nupi 启动脚本
+
+Piano 创建了统一入口 `/usr/local/bin/nupi`:
+
+```bash
+nupi              # NuPI 模式 (本地 LLM)
+nupi piano        # Piano 模式 (任务路由)
+```
+
 ## 核心原则：不要问人类
 
 **不要问人类问题** - 如果需要做决定或需要帮助：

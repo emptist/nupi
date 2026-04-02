@@ -160,6 +160,15 @@ npm run build      # Build
 npm run test      # Tests
 ```
 
+### nupi Launch Script
+
+Piano created a unified launcher at `/usr/local/bin/nupi`:
+
+```bash
+nupi              # Start NuPI mode (local LLM)
+nupi piano        # Start Piano mode (task routing)
+```
+
 ### Using nezha CLI
 
 ```bash
@@ -210,4 +219,32 @@ Set env vars if needed:
 NEZHA_DB_HOST=localhost
 NEZHA_DB_PORT=5432
 NEZHA_DB_NAME=nezha
+```
+
+---
+
+## GitHub Integration
+
+### GitHub Sync Service
+
+High priority issues (severity: high/critical) automatically sync to GitHub:
+- GitHub: https://github.com/emptist/nezha
+- Uses `[ISSUE] severity:high` trigger
+- Solves 450+ pending issues noise problem
+
+### Dual-Channel Issue System
+
+| Channel | Purpose |
+|---------|---------|
+| nezha DB | Task tracking, AI collaboration |
+| GitHub | Discussions, @mentions, human visible |
+
+### Creating GitHub Issues
+
+```bash
+# Via nezha reflection (auto-syncs high priority)
+node ./node_modules/.bin/nezha areflect "[ISSUE] title: ... severity:high"
+
+# Via GitHub CLI
+gh issue create --repo emptist/nezha --title "Title" --body "Body"
 ```

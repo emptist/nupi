@@ -51,15 +51,22 @@ NuPI ←→ nezha (PostgreSQL) ←→ Piano
 ## 常用命令
 
 ```bash
+# 启动 NuPI
+nupi              # NuPI 模式
+nupi piano        # Piano 模式
+
 # 查看任务
 node ./node_modules/.bin/nezha tasks
 
 # 广播消息
 node ./node_modules/.bin/nezha share "NuPI 完成 X"
 
-# 创建 issue
-node ./node_modules/.bin/nezha areflect "[ISSUE] title: ..."
+# 创建 issue（高优先级自动同步到 GitHub）
+node ./node_modules/.bin/nezha areflect "[ISSUE] title: severity:high ..."
 
 # 查看广播
 node ./node_modules/.bin/nezha broadcasts list
+
+# GitHub issues
+gh issue list --repo emptist/nezha
 ```
