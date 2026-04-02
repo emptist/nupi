@@ -1,51 +1,73 @@
 # NuPI Memory
 
+> **我是 NuPI AI** (牛派)
+> 
 > Curated knowledge for NuPI AI Agent
-
-> **IMPORTANT**: This file is part of NuPI's ROM. AI must read `.memory/` directory on startup!
+> 
+> **IMPORTANT**: 每次启动时阅读此文件确认身份！
 
 ## Identity
 
-**Name:** NuPI (牛派)
-**Role:** Pi executor - local AI execution without external APIs
-**Purpose:** Execute tasks using local Ollama models (llama3.2:3b, nomic-embed-text)
+| 属性 | 值 |
+|------|-----|
+| 项目名 | NuPI (不是 nezha!) |
+| 角色 | Pi executor - 本地 AI 执行器 |
+| 用途 | 使用本地 Ollama 模型执行任务 |
+| 模型 | llama3.2:3b, nomic-embed-text |
 
-## Architecture
+## 架构
 
+```
 NuPI = Pi + Nezha (二合一)
+```
 
-- No MCP required
-- No external API calls (zero cost)
-- Uses PostgreSQL database: postgresql://localhost:5432/nezha
+- 不需要 MCP
+- 不需要外部 API（零成本）
+- 使用共享 PostgreSQL 数据库：`postgresql://localhost:5432/nezha`
 
-## Files
+**跨 AI 协作**：NuPI、Nezha、Piano 通过同一个数据库互联，各自独立运行。
 
-- `src/services/PiExecutor.ts` - Execute local LLM tasks
-- `src/services/PiSDKExecutor.ts` - SDK-based execution
-- `src/services/TraeAutoRecoveryService.ts` - Trae integration
-- `src/services/TraeSkillSyncService.ts` - Trae skill sync
-- `extensions/nezha-tools.ts` - Pi extension commands
-- `extensions/nezha-autowork.ts` - Auto-work loop
+## 核心文件
 
-## Commands (Pi Extension)
+| 文件 | 用途 |
+|------|------|
+| `src/services/PiExecutor.ts` | 执行本地 LLM 任务 |
+| `src/services/PiSDKExecutor.ts` | SDK 方式执行 |
+| `src/services/TraeAutoRecoveryService.ts` | Trae 集成 |
+| `src/services/TraeSkillSyncService.ts` | Trae 技能同步 |
+| `extensions/nupi-tools.ts` | Pi 扩展命令 |
+| `extensions/nupi-autowork.ts` | 自动工作循环 |
 
-| Command        | Description        |
-| -------------- | ------------------ |
-| `nezha-tasks`  | View pending tasks |
-| `nezha-issues` | View open issues   |
-| `nezha-status` | System status      |
-| `nezha-work`   | Autonomous mode    |
-| `nezha-learn`  | Save learning      |
-| `nezha-search` | Search memory      |
+## Pi 扩展命令
 
-## Local Models
+> **注意**：命令名统一为 `nupi-*`，不是 `nezha-*`
 
-- **Chat:** llama3.2:3b (Ollama)
-- **Embedding:** nomic-embed-text (Ollama)
+| 命令 | 描述 |
+|------|------|
+| `nupi-tasks` | 查看待办任务 |
+| `nupi-issues` | 查看开放问题 |
+| `nupi-status` | 系统状态 |
+| `nupi-work` | 自主工作模式 |
+| `nupi-learn` | 保存学习 |
+| `nupi-search` | 搜索记忆 |
 
-## Dependencies
+## 依赖
 
-| Package | Source               | Purpose       |
-| ------- | -------------------- | ------------- |
-| nezha   | npm link to ../nezha | Core services |
-| pg      | npm                  | Database      |
+| 包 | 来源 | 用途 |
+|----|------|------|
+| nezha | npm link to ../nezha | 核心服务（数据库） |
+| pg | npm | 数据库驱动 |
+| @mariozechner/pi-coding-agent | peerDependency | Pi TUI |
+
+## 本地模型
+
+- **Chat**: llama3.2:3b (Ollama)
+- **Embedding**: nomic-embed-text (Ollama)
+
+## 开发命令
+
+```bash
+npm run typecheck  # 类型检查
+npm run build      # 构建
+npm run test       # 测试
+```

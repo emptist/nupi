@@ -46,7 +46,7 @@
 
 ```bash
 # 进入目录
-cd ~/gits/hub/nezha/nupi
+cd ~/gits/hub/tools_ai/nupi
 
 # 复制扩展到 Pi
 cp extensions/*.ts ~/.pi/agent/extensions/

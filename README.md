@@ -31,12 +31,12 @@ pi .
 
 | 命令           | 说明         |
 | -------------- | ------------ |
-| `nezha-tasks`  | 查看待办任务 |
-| `nezha-issues` | 查看开放问题 |
-| `nezha-status` | 系统状态     |
-| `nezha-work`   | 自主工作模式 |
-| `nezha-learn`  | 保存学习     |
-| `nezha-search` | 搜索记忆     |
+| `nupi-tasks`  | 查看待办任务 |
+| `nupi-issues` | 查看开放问题 |
+| `nupi-status` | 系统状态     |
+| `nupi-work`   | 自主工作模式 |
+| `nupi-learn`  | 保存学习     |
+| `nupi-search` | 搜索记忆     |
 
 ### 方式 2：本地开发模式（现在就能用）
 
@@ -125,8 +125,8 @@ NuPI = Pi (TUI前端) + Nezha (后端服务)
 nupi/
 ├── src/           # NuPI 核心代码 (未来 npm 包)
 ├── extensions/    # Pi 扩展
-│   ├── nezha-tools.ts      # 数据库/CLI 工具
-│   └── nezha-autowork.ts   # 永续工作循环
+│   ├── nupi-tools.ts      # 数据库/CLI 工具
+│   └── nupi-autowork.ts   # 永续工作循环
 └── skills/        # Pi Skills
     └── SKILL.md   # AI 必读文档
 ```
