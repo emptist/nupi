@@ -29,12 +29,12 @@ NuPI = Pi + Nezha (二合一)
 
 ## 会话类型
 
-| 会话 | 心跳 | 场景 |
+| 会话 | 心跳 | 说明 |
 |------|------|------|
-| OpenCode 会话 | ❌ 不需要 | 临时工作，不需要持续运行 |
-| Pi 独立会话 | ✅ 需要 | 24/7 运行，需要心跳保持活跃 |
+| NuPI | ❌ 不需要 | Pi 负责安排任务，NuPI 只管执行 |
+| nezha 核心 | ✅ 需要 | 没有 Pi 时需要心跳保持活跃 |
 
-**注意**：Heartbeat running: false 在 OpenCode 会话中是正常的。
+**注意**：HeartbeatService 是给 nezha 核心用的，NuPI 不需要！
 
 ## 核心文件
 
