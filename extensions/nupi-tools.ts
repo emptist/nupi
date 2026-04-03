@@ -7,7 +7,7 @@
 
 import pg from 'pg';
 import { execSync } from 'child_process';
-import type { ExtensionAPI } from '@mariozechner/pi-coding-agent';
+// Use 'any' type for Pi extension compatibility
 
 const { Client } = pg;
 
@@ -76,7 +76,7 @@ function sanitizeForCli(input: string): string {
     .substring(0, 500);
 }
 
-export default function nupiTools(pi: ExtensionAPI): void {
+export default function nupiTools(pi: any): void {
 
   pi.registerCommand('nupi-tasks', {
     description: 'List pending tasks (NuPI)',
