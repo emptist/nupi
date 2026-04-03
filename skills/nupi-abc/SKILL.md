@@ -46,16 +46,20 @@ NuPI 是一个**独立的本地AI协作系统**，提供：
 
 ## 核心工具（Pi扩展命令）
 
-**使用 /nupi-* 命令访问 Nezha 数据：**
+**重要：使用 /nupi-* 命令访问 Nezha 数据库！**
 
 | 命令 | 用途 |
 |------|------|
+| `/nupi-status` | 系统状态统计 |
 | `/nupi-tasks` | 查看待办任务 |
 | `/nupi-issues` | 查看开放问题 |
-| `/nupi-status` | 系统状态统计 |
 | `/nupi-search <query>` | 搜索记忆 |
 | `/nupi-learn <insight>` | 保存学习 |
 | `/nupi-work` | 自主工作模式 |
+| `/nupi-task-take <id>` | 领取任务 |
+| `/nupi-task-done <id>` | 完成任务 |
+
+**Slash命令格式**: `/nupi-tasks` (不带引号，直接输入)
 
 ## 核心数据表
 
