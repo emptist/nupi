@@ -96,9 +96,9 @@ psql -U postgres -d nezha -c "SELECT content, created_at FROM memory ORDER BY cr
 
 ---
 
-## 备用：MCP (仅 Piano 需要)
+## 备用：MCP
 
-> 注意：MCP 仅当 NuPI 与 OpenCode 集成时才需要。独立 NuPI 不需要 MCP。
+> 注意：独立 NuPI 不需要 MCP。MCP 仅用于外部 AI 服务集成。
 
 ### nezha-learning
 

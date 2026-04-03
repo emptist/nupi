@@ -125,10 +125,9 @@ NuPI = Pi (TUI前端) + Nezha (后端服务)
 
 ```bash
 nupi              # 启动 NuPI 模式 (本地 LLM)
-nupi piano        # 启动 Piano 模式 (任务路由)
 ```
 
-### 方式 2：直接 Pi 扩展
+### 直接 Pi 扩展
 
 ```bash
 pi ~/.pi/agent/extensions/nupi-tools.ts
@@ -146,13 +145,6 @@ nupi/
     └── nupi-abc/
         └── SKILL.md   # AI 必读文档
 ```
-
-## NuPI vs Piano
-
-| 系统      | 组成                     | 复杂度 |
-| --------- | ------------------------ | ------ |
-| **NuPI**  | Nezha + Pi = 二合一      | 简单   |
-| **Piano** | NuPI + OpenCode = 三合一 | 复杂   |
 
 ## AI 协作系统
 

@@ -25,44 +25,26 @@ NuPI = Pi + Nezha (二合一)
 - 不需要外部 API（零成本）
 - 使用共享 PostgreSQL 数据库：`postgresql://localhost:5432/nezha`
 
-**跨 AI 协作**：NuPI、Nezha、Piano 通过同一个数据库互联，各自独立运行。
+**跨 AI 协作**：NuPI、Nezha 通过同一个数据库互联，各自独立运行。
 
-## 会话类型
+## GitHub 同步服务
 
-| 会话 | 心跳 | 说明 |
-|------|------|------|
-| NuPI | ❌ 不需要 | Pi 负责安排任务，NuPI 只管执行 |
-| nezha 核心 | ✅ 需要 | 没有 Pi 时需要心跳保持活跃 |
+**GitHub 同步服务** (emptist/nezha#11):
+- 高优先级 (critical/high) issues 自动同步到 GitHub
+- 解决 450+ pending issues 噪声问题
+- 人类可见，易于参与
+- 使用 `[ISSUE] severity:high` 触发同步
 
-**注意**：HeartbeatService 是给 nezha 核心用的，NuPI 不需要！
+**双渠道 Issue 系统**:
+- GitHub: 用于讨论和人类可见
+- nezha DB: 用于任务追踪和 AI 协作
 
-## 核心文件
+## nupi 启动脚本
 
-| 文件 | 用途 |
-|------|------|
-| `src/services/PiExecutor.ts` | 执行本地 LLM 任务 |
-| `src/services/PiSDKExecutor.ts` | SDK 方式执行 |
-| `src/services/TraeAutoRecoveryService.ts` | Trae 集成 |
-| `src/services/TraeSkillSyncService.ts` | Trae 技能同步 |
-| `src/services/NuPIHeartbeatService.ts` | 心跳服务（复用 nezha） |
-| `extensions/nupi-tools.ts` | Pi 扩展命令 |
-| `extensions/nupi-autowork.ts` | 自动工作循环 |
+`/usr/local/bin/nupi`:
 
-## npm nezha 可复用功能
-
-**重要**：通过 `npm link nezha` 后，可以直接使用 nezha 导出的功能：
-
-```typescript
-// 复用 nezha 的心跳服务
-import { HeartbeatService, Config } from 'nezha';
-import { DatabaseClient } from 'nezha/dist/db/DatabaseClient.js';
-
-const db = new DatabaseClient(Config.getInstance());
-const heartbeat = new HeartbeatService(db, {
-  heartbeatIntervalMs: 60000,
-  enableReminder: true,
-});
-await heartbeat.start();
+```bash
+nupi              # NuPI 模式 (本地 LLM)
 ```
 
 **nezha 导出的可用功能**：

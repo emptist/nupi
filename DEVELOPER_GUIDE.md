@@ -162,11 +162,10 @@ npm run test      # Tests
 
 ### nupi Launch Script
 
-Piano created a unified launcher at `/usr/local/bin/nupi`:
+NuPI launcher at `/usr/local/bin/nupi`:
 
 ```bash
 nupi              # Start NuPI mode (local LLM)
-nupi piano        # Start Piano mode (task routing)
 ```
 
 ### Using nezha CLI

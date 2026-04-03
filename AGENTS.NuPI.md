@@ -20,11 +20,10 @@
 ### 1. 各自职责分明
 - **NuPI**: Pi + 本地 LLM 执行器，独立运行
 - **Nezha**: 数据库服务（共享）
-- **Piano**: NuPI + OpenCode
 
 ### 2. 通过数据库协作
 ```
-NuPI ←→ nezha (PostgreSQL) ←→ Piano
+NuPI ←→ nezha (PostgreSQL)
            ↓
      tasks, memory, broadcasts, issues
 ```
@@ -53,7 +52,6 @@ NuPI ←→ nezha (PostgreSQL) ←→ Piano
 ```bash
 # 启动 NuPI
 nupi              # NuPI 模式
-nupi piano        # Piano 模式
 
 # 查看任务
 node ./node_modules/.bin/nezha tasks
