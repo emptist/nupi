@@ -1,3 +1,20 @@
+/**
+ * Trae Skill Sync Service
+ *
+ * Synchronizes approved skills from Nezha database to .trae/skills/ directory.
+ *
+ * NOTE (Phase 2 Audit): This service uses direct database access for READ-ONLY
+ * operations on the skills table. This is acceptable because:
+ *
+ * 1. It only performs SELECT queries (no mutations)
+ * 2. It runs inside the daemon context where DB access is authorized
+ * 3. The dbClient is injected via setter, not created internally
+ * 4. No sensitive data is exposed
+ *
+ * If a /skills endpoint is added to NuPI in the future, this should be migrated
+ * to use NuPIClient for consistency with other services.
+ */
+
 import { logger } from 'nezha';
 import * as fs from 'fs';
 import * as path from 'path';

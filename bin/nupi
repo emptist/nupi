@@ -7,6 +7,9 @@
 
 set -e
 
+# Load OpenRouter API key from Keychain
+export OPENROUTER_API_KEY=$(security find-generic-password -s "openrouter" -a "jk" -w 2>/dev/null)
+
 NUPI_EXT="$HOME/.pi/agent/extensions/nupi-tools.ts"
 
 show_help() {
@@ -25,6 +28,10 @@ EOF
 case "${1:-}" in
     -h|--help)
         show_help
+        ;;
+    --list-models)
+        shift
+        pi --list-models --provider openrouter "$@"
         ;;
     *)
         echo "🟡 启动 NuPI 模式..."

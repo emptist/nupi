@@ -7,21 +7,12 @@
  * Based on research: AI only works when explicitly given tasks.
  * BlindLoop provides reminders to AI so it continues working autonomously.
  *
- * Installation:
- * 1. Copy this file to ~/.pi/agent/extensions/nezha-blind-loop.ts
- * 2. Set environment variables:
- *    - NEZHA_DB_HOST=localhost
- *    - NEZHA_DB_PORT=5432
- *    - NEZHA_DB_NAME=nezha
- *    - NEZHA_DB_USER=postgres
- *    - NEZHA_DB_PASSWORD=postgres
- * 3. Restart Pi session
+ * Migration (Phase 2): Removed direct pg.Client connections.
+ * Now uses NuPIClient HTTP API for all database operations.
  */
 
-import pg from 'pg';
 import type { ExtensionAPI } from '@mariozechner/pi-coding-agent';
-
-const { Client } = pg;
+import { getNuPIClient } from './services/NuPIClient.js';
 
 interface NezhaTask {
   id: string;
@@ -31,40 +22,15 @@ interface NezhaTask {
   status: string;
 }
 
-function getDbConfig() {
-  return {
-    host: process.env.NEZHA_DB_HOST || 'localhost',
-    port: parseInt(process.env.NEZHA_DB_PORT || '5432', 10),
-    database: process.env.NEZHA_DB_NAME || 'nezha',
-    user: process.env.NEZHA_DB_USER || 'postgres',
-    password: process.env.NEZHA_DB_PASSWORD || 'postgres',
-  };
-}
-
 async function checkPendingTasks(): Promise<NezhaTask | null> {
-  const config = getDbConfig();
-  const client = new Client(config);
+  const api = getNuPIClient();
 
   try {
-    await client.connect();
-
-    const result = await client.query<NezhaTask>(
-      `SELECT id, title, description, priority, status
-       FROM tasks
-       WHERE status = 'PENDING'
-       ORDER BY priority DESC, created_at ASC
-       LIMIT 1`
-    );
-
-    if (result.rows.length > 0) {
-      return result.rows[0];
-    }
-    return null;
+    const task = await api.getPendingTask(1);
+    return task;
   } catch (error) {
-    console.error('[NezhaBlindLoop] Database error:', error);
+    console.error('[NezhaBlindLoop] API error:', error instanceof Error ? error.message : error);
     return null;
-  } finally {
-    await client.end();
   }
 }
 
@@ -122,7 +88,7 @@ Save via: node dist/cli/index.js areflect "[LEARN] insight: ..."`;
 
 export default function nezhaBlindLoop(pi: ExtensionAPI): void {
   let timerId: NodeJS.Timeout | null = null;
-  const INTERVAL_MS = 2 * 60 * 1000; // 2 minutes
+  const INTERVAL_MS = 2 * 60 * 1000;
 
   async function periodicCheck(): Promise<void> {
     console.log('[NezhaBlindLoop] Checking for tasks...');
@@ -149,10 +115,8 @@ export default function nezhaBlindLoop(pi: ExtensionAPI): void {
   pi.on('session_start', async () => {
     console.log('[NezhaBlindLoop] Session started, beginning periodic checks...');
 
-    // Initial check after 10 seconds
     setTimeout(periodicCheck, 10 * 1000);
 
-    // Start periodic checks
     timerId = setInterval(periodicCheck, INTERVAL_MS);
   });
 
@@ -164,7 +128,6 @@ export default function nezhaBlindLoop(pi: ExtensionAPI): void {
     }
   });
 
-  // Register command to manually trigger check
   pi.registerCommand('nezha-check', {
     description: 'Manually trigger Nezha task check',
     handler: async () => {
@@ -172,25 +135,21 @@ export default function nezhaBlindLoop(pi: ExtensionAPI): void {
     },
   });
 
-  // Register command to save learning to Nezha
-  // Usage: pi nezhacall nezha-learn '{"insight": "...", "context": "..."}'
   pi.registerCommand('nezha-learn', {
-    description: 'Save learning to Nezha memory',
+    description: 'Save learning to Nezha memory via NuPI API',
     handler: async (args: string) => {
-      const params = JSON.parse(args) as { insight: string; context?: string };
-      const config = getDbConfig();
-      const client = new Client(config);
       try {
-        await client.connect();
-        await client.query(
-          `INSERT INTO memory (content, source, tags) VALUES ($1, 'pi-extension', $2)`,
-          [params.insight, params.context ? [params.context] : ['learn', 'pi']]
+        const params = JSON.parse(args) as { insight: string; context?: string };
+        const api = getNuPIClient();
+
+        await api.saveMemory(
+          params.insight,
+          params.context ? [params.context, 'learn', 'pi'] : ['learn', 'pi']
         );
+
         console.log('[NezhaBlindLoop] Learning saved:', params.insight.substring(0, 50));
       } catch (error) {
-        console.error('[NezhaBlindLoop] Failed to save learning:', error);
-      } finally {
-        await client.end();
+        console.error('[NezhaBlindLoop] Failed to save learning:', error instanceof Error ? error.message : error);
       }
     },
   });

@@ -62,6 +62,13 @@ export class PiExecutor {
     this.env = config.env || {};
   }
 
+  private mergeEnv(): Record<string, string> {
+    const merged = { ...process.env, ...this.env };
+    return Object.fromEntries(
+      Object.entries(merged).filter(([, v]) => v !== undefined)
+    ) as Record<string, string>;
+  }
+
   async execute(taskDescription: string, timeoutMs: number = 600000): Promise<PiTaskResult> {
     const startTime = Date.now();
 
@@ -71,7 +78,7 @@ export class PiExecutor {
       const { stdout, stderr } = await execSafe(
         this.piPath,
         ['execute', '--model', this.defaultModel, '--print', taskDescription],
-        { timeout: timeoutMs, env: { ...process.env, ...this.env } },
+        { timeout: timeoutMs, env: this.mergeEnv() },
       );
 
       const durationMs = Date.now() - startTime;
@@ -110,7 +117,7 @@ export class PiExecutor {
       const { stdout, stderr } = await execSafe(
         this.piPath,
         ['execute', '--model', this.defaultModel, '--mode', 'json', taskDescription],
-        { timeout: timeoutMs, env: { ...process.env, ...this.env } },
+        { timeout: timeoutMs, env: this.mergeEnv() },
       );
 
       const durationMs = Date.now() - startTime;
@@ -163,7 +170,7 @@ export class PiExecutor {
       const { stdout, stderr } = await execSafe(
         this.piPath,
         ['--system-prompt', systemPrompt, '--print', task],
-        { timeout: timeoutMs, env: { ...process.env, ...this.env } },
+        { timeout: timeoutMs, env: this.mergeEnv() },
       );
 
       const durationMs = Date.now() - startTime;
