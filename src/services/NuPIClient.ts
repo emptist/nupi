@@ -176,6 +176,62 @@ export class NuPIClient {
       dlqItemsPending: number;
     }>('GET', '/admin/recovery/stats');
   }
+
+  async updateTaskStatus(taskId: string, status: string): Promise<{ id: string; status: string }> {
+    return this.request<{ id: string; status: string }>(
+      'PUT',
+      `/tasks/${taskId}/status`,
+      { status }
+    );
+  }
+
+  async updateTaskResult(taskId: string, result: unknown): Promise<{ id: string }> {
+    return this.request<{ id: string }>(
+      'PUT',
+      `/tasks/${taskId}/result`,
+      { result }
+    );
+  }
+
+  async updateTaskError(taskId: string, error: string): Promise<{ id: string }> {
+    return this.request<{ id: string }>(
+      'PUT',
+      `/tasks/${taskId}/error`,
+      { error }
+    );
+  }
+
+  async getIssues(limit?: number): Promise<unknown[]> {
+    const query = limit ? `?limit=${limit}` : '';
+    const result = await this.request<{ rows?: unknown[] } | unknown[]>(
+      'GET',
+      `/issues${query}`
+    );
+    if (Array.isArray(result)) return result;
+    return result.rows || [];
+  }
+
+  async searchMemory(query: string, limit?: number): Promise<unknown[]> {
+    const q = `?q=${encodeURIComponent(query)}${limit ? `&limit=${limit}` : ''}`;
+    const result = await this.request<{ rows?: unknown[] } | unknown[]>(
+      'GET',
+      `/memory/search${q}`
+    );
+    if (Array.isArray(result)) return result;
+    return result.rows || [];
+  }
+
+  async getSystemStatus(): Promise<{
+    pendingTasks: number;
+    openIssues: number;
+    memoryCount: number;
+  }> {
+    return this.request<{
+      pendingTasks: number;
+      openIssues: number;
+      memoryCount: number;
+    }>('GET', '/status');
+  }
 }
 
 let clientInstance: NuPIClient | null = null;
