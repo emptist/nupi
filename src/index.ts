@@ -8,6 +8,7 @@
 
 import { PiExecutor } from './services/PiExecutor.js';
 import { PiSDKExecutor } from './services/PiSDKExecutor.js';
+export { getNuPIClient, NuPIClient } from './services/NuPIClient.js';
 
 export { PiExecutor, type PiTaskResult, type PiConfig } from './services/PiExecutor.js';
 export { PiSDKExecutor } from './services/PiSDKExecutor.js';
