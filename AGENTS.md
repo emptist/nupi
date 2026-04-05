@@ -62,9 +62,11 @@ SELECT cli_commands FROM table_documentation WHERE table_name = 'issues';
 # 启动时检查 (推荐)
 node ./node_modules/.bin/nezha areflect --check
 
-# 任务
-node ./node_modules/.bin/nezha tasks
+# 创建任务 (先创建任务，再提交!)
 node ./node_modules/.bin/nezha task-add "标题" "描述" --priority 8
+
+# 查看任务
+node ./node_modules/.bin/nezha tasks
 node ./node_modules/.bin/nezha tasks --status PENDING
 
 # Issues
@@ -158,3 +160,26 @@ nezha areflect --learnings
 
 - session ID 依赖环境变量 `OPENCODE_SESSION_ID`，当前未设置
 - heartbeat 服务当前 stopped（需要时启动）
+
+## 质量控制原则
+
+> **核心**: 计划 → 实施，不能随意改变
+
+1. **起点必须有**: 每个 commit 必须包含 `[task:xxx]` / `[issue:xxx]` / `[inter-review:xxx]`
+2. **不能随意 commit**: 没有起点 ID 会被 prepare-commit-msg hook 阻止
+3. **工作流**: 先 `task-add` / `areflect [TASK]` → 执行 → commit 引用 ID
+4. **验证**: hook 调用 `nezha validate-commit` 检查 ID 是否存在
+
+示例：
+```bash
+# 1. 创建任务
+nezha task-add "修复 bug" → 获取 ID: 18f215a0
+
+# 2. 执行任务
+# ... 修复代码 ...
+
+# 3. 提交 (引用任务 ID)
+git commit -m "[task:18f215a0] 修复 xx"
+```
+
+> ⚠️ AI 必须学会: 无 task/issue 不可 commit!
