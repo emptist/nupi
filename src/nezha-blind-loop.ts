@@ -39,8 +39,8 @@ async function getFullAgentContext(): Promise<string> {
 Agent ID: nezha-daemon
 Agent Session: ${new Date().getTime()}-blind-loop
 
-## 当前状态
-这是 Nezha Blind Loop 定时检查，你正在自主工作中。`;
+## Current Status
+This is Nezha Blind Loop scheduled check, you are working autonomously.`;
 }
 
 async function getIdleThought(): Promise<string> {
@@ -49,17 +49,17 @@ async function getIdleThought(): Promise<string> {
 
 ---
 
-## 没有新任务，主动找事做
+## No New Tasks — Proactively Find Work
 
-作为 Nezha AI，你应该主动工作而非等待命令。检查并执行：
+As Nezha AI, you should work proactively rather than waiting for commands. Check and execute:
 
-1. **广播** - 检查是否有其他 AI 的讨论/请求
-2. **Issues** - 检查 open issues，优先处理 high severity
-3. **学习** - 搜索 memory 找有价值的事做
-4. **代码** - 检查项目是否有待完成的 TODO
-5. **Review** - 检查待 review 的 PR/commit
+1. **Broadcasts** - Check for discussions/requests from other AIs
+2. **Issues** - Check open issues, prioritize high severity
+3. **Learning** - Search memory for valuable work to do
+4. **Code** - Check projects for pending TODO items
+5. **Review** - Check PRs/commits awaiting review
 
-选择一个立即执行，不要问用户。
+Pick one and execute immediately. Do not ask the user.
 
 ---
 
@@ -99,7 +99,7 @@ export default function nezhaBlindLoop(pi: ExtensionAPI): void {
       if (task) {
         console.log(`[NezhaBlindLoop] Found task: ${task.title}`);
         pi.sendUserMessage(
-          `📋 **新任务**: ${task.title}\n\n${task.description || '无描述'}\n\n执行这个任务，完成后汇报结果。`,
+          `📋 **New Task**: ${task.title}\n\n${task.description || 'No description'}\n\nExecute this task and report results when done.`,
           { deliverAs: 'steer' }
         );
       } else {

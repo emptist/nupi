@@ -1,7 +1,7 @@
 /**
- * NuPI - Nezha united with PI (牛派)
+ * NuPI - Nezha united with PI
  *
- * 本地二合一 AI 协作系统
+ * Local unified AI collaboration system
  *
  * @package @nezha/nupi
  */
