@@ -132,3 +132,29 @@ nezha areflect --learnings
 - ❌ 直接替其他 AI 完成分配给它的任务
 - ❌ 依赖 MCP（NuPI 是独立系统）
 - ❌ 依赖记忆（数据库是唯一真相来源）
+
+## 已验证功能 (2026-04-05)
+
+| 能力 | 命令 | 状态 |
+|------|------|------|
+| 一键检查待办 | `nezha areflect --check` | ✅ |
+| 任务列表 | `nezha tasks` | ✅ |
+| 一键解析 | `areflect [ISSUE]/[TASK]/[LEARN]` | ✅ |
+| 保存学习 | `nezha learn <内容>` | ✅ |
+| 广播消息 | `nezha share <消息>` | ✅ |
+| 查看活跃会话 | `nezha who-is-working` | ✅ |
+| 任务统计 | `nezha tot` | ✅ |
+| 系统状态 | `nezha health` | ✅ |
+| 创建 issue | `nezha issues create <title>` | ✅ |
+
+## Agent ID 机制
+
+- **格式**: `S-{source}-{project}-{branch}-{session}` 
+- **获取**: `nezha agents whoami` 或 API `GET /identity`
+- **Git Hook**: commit 时自动追加 `[Agent: xxx]` 到消息
+- **追踪**: 每次 git commit 都能追溯到是哪个 AI
+
+## 当前限制
+
+- session ID 依赖环境变量 `OPENCODE_SESSION_ID`，当前未设置
+- heartbeat 服务当前 stopped（需要时启动）
