@@ -39,7 +39,9 @@ NuPI ←→ nezha (PostgreSQL)
 1. **启动时**: 先查 table_documentation → 检查 broadcasts、tasks、issues
 2. **执行**: 领取任务 → 执行 → 保存学习
 3. **协作**: 发现问题 → 创建 issue → 广播
-4. **循环**: 完成后回到步骤 1
+4. **循环**: 完成后回到步骤 1（定期检查 broadcasts 获取其他 AI 动态）
+
+> **重要**: AI 应主动检查 broadcasts 获取其他 AI 消息，不要等人类提醒！
 
 ## Database First
 
