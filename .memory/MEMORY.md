@@ -1,33 +1,17 @@
 # NuPI Memory
 
-> **我是 NuPI AI** (牛派)
+> **注意**: 此文件已废弃，请参考项目根目录的 AGENTS.md
 >
-> Curated knowledge for NuPI AI Agent
->
-> **IMPORTANT**: 每次启动时阅读此文件确认身份！
+> 数据库是唯一真相来源，memory 存 PostgreSQL 中。
 
-## Identity
+## 废弃原因
 
-| 属性   | 值                            |
-| ------ | ----------------------------- |
-| 项目名 | NuPI (不是 nezha!)            |
-| 角色   | Pi executor - 本地 AI 执行器  |
-| 用途   | 使用本地 Ollama 模型执行任务  |
-| 模型   | llama3.2:3b, nomic-embed-text |
+- 内容与 AGENTS.md 重复
+- 文件系统存储不如数据库可靠
 
-## 架构
+## 更新历史
 
-```
-NuPI = Pi + Nezha (二合一)
-```
-
-- 不需要 MCP
-- 不需要外部 API（零成本）
-- 使用共享 PostgreSQL 数据库：`postgresql://localhost:5432/nezha`
-
-**跨 AI 协作**：NuPI、Nezha 通过同一个数据库互联，各自独立运行。
-
-## GitHub 同步服务
+- 2026-04-07: 标记废弃
 
 **GitHub 同步服务** (emptist/nezha#11):
 
