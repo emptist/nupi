@@ -1,18 +1,17 @@
-# 迁移说明
+# NuPI 文档 (Legacy)
 
-> 从 nezha 迁移到 nupi 的旧文档
+> **状态**: 已废弃
 
-## 迁移时间
+以下文档已迁移到项目根目录：
 
-2026-04-05
+- `README.md` → 根目录 `README.md`
+- `DEVELOPER.md` → 根目录 `DEVELOPER_GUIDE.md`
+- 其他文档 → 参考 `AGENTS.md`
 
-## 原因
+请使用根目录的文档。
 
-NuPI 已独立为单独项目，这些文档属于 NuPI 范畴。
+---
 
-## 文档列表
+**迁移时间**: 2026-04-08
 
-- NUPI测试指南.md
-- NUPI验证方法.md
-- NUPI验证计划.md
-- NUPI永续工作待办.md
+**原因**: NuPI 独立，文档需统一管理

@@ -1,8 +1,6 @@
 # NUPI Extension 测试指南
 
-## 快速测试步骤
-
-### 1. 更新 Extension
+> **状态**: 已废弃
 
 ```bash
 cp /Users/jk/gits/hub/nezha/extensions/nezha-blind-loop.ts ~/.pi/agent/extensions/

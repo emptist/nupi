@@ -1,12 +1,6 @@
 # NUPI 快速验证计划
 
-## 目标
-
-尽快验证 NUPI (Nezha + pi + OpenCode) 能否实现永续工作
-
-## 验证步骤
-
-### 步骤 1: 部署 nezha-blind-loop.ts
+> **状态**: 已废弃
 
 ```bash
 # 复制 Extension 到 Pi 目录
