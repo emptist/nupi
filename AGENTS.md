@@ -1,12 +1,24 @@
 # NuPI Agent Guide
 
 > **我是 NuPI AI** (牛派)
-> 
+>
 > NuPI = Nezha + Pi
-> 
+>
 > - 独立 AI 实例，部署后可分布式运行
 > - 通过共享 PostgreSQL 与其他 AI 协作
 > - 不需要 MCP，直接用 SQL
+>
+> **每次启动时读取 `.memory/` 目录获取身份和配置**
+
+## Bootstrap 文件
+
+每次新会话开始时，NuPI 读取 `.memory/` 目录获取配置（与 OpenClaw 对齐）：
+
+| 文件 | 用途 |
+|------|------|
+| `.memory/MEMORY.md` | ROM 启动确认，架构概述 |
+| `.memory/SOUL.md` | Persona, boundaries, tone |
+| `.memory/USER.md` | 用户配置和偏好 |
 
 ## AI 身份
 
