@@ -10,6 +10,58 @@
  */
 
 import type { ExtensionAPI } from '@mariozechner/pi-coding-agent';
+import { execSync } from 'child_process';
+
+const NEZHA_API_PORT = 4099;
+const NEZHA_API_HOST = 'localhost';
+
+async function isNezhaApiRunning(): Promise<boolean> {
+  return new Promise((resolve) => {
+    const net = require('net');
+    const socket = new net.Socket();
+    socket.setTimeout(1000);
+    socket.on('connect', () => {
+      socket.destroy();
+      resolve(true);
+    });
+    socket.on('timeout', () => {
+      socket.destroy();
+      resolve(false);
+    });
+    socket.on('error', () => {
+      resolve(false);
+    });
+    socket.connect(NEZHA_API_PORT, NEZHA_API_HOST);
+  });
+}
+
+async function startNezha(): Promise<void> {
+  console.log('[NuPI] Starting Nezha daemon...');
+  try {
+    execSync('cd /Users/jk/gits/hub/tools_ai/nezha && nohup node ./dist/cli/index.js start > /tmp/nezha.log 2>&1 &', {
+      encoding: 'utf-8',
+      timeout: 5000,
+      shell: '/bin/bash',
+    });
+    console.log('[NuPI] Nezha daemon started.');
+  } catch (e: any) {
+    console.error('[NuPI] Failed to start Nezha daemon:', e.message);
+  }
+}
+
+async function ensureNezhaApiRunning(): Promise<void> {
+  console.log('[NuPI] Checking Nezha daemon status...');
+  const isRunning = await isNezhaApiRunning();
+  if (!isRunning) {
+    console.log(`[NuPI] Nezha daemon not running on port ${NEZHA_API_PORT}, auto-starting...`);
+    await startNezha();
+    await new Promise((r) => setTimeout(r, 10000));
+    const nowRunning = await isNezhaApiRunning();
+    console.log(`[NuPI] Nezha daemon status after start: ${nowRunning ? 'RUNNING' : 'NOT RUNNING'}`);
+  } else {
+    console.log(`[NuPI] Nezha daemon already running on port ${NEZHA_API_PORT}`);
+  }
+}
 
 const AUTO_WORK_PROMPT = `
 ## NuPI Auto-Work Mode (v2.0)
@@ -55,6 +107,8 @@ When idle, automatically:
 export default function nezhaAutoWork(pi: ExtensionAPI): void {
   pi.on('session_start', async () => {
     console.log('[NuPI v2.0] Auto-work mode starting...');
+    
+    await ensureNezhaApiRunning();
 
     pi.sendUserMessage(AUTO_WORK_PROMPT, { deliverAs: 'steer' });
 
