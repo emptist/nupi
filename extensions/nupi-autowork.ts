@@ -230,6 +230,24 @@ export default function nezhaAutoWork(pi: ExtensionAPI): void {
     }
   });
 
+  pi.on("tool_call", async (event, ctx) => {
+    if (event.toolName === "bash" && event.input.command) {
+      const cmd = event.input.command;
+      const dangerous = /^\s*(rm\s+(-[rf]+\s)*\/|sudo\s+rm\s|dd\s+if=|mkfs\.|>:?\s*\/dev\/)/;
+      if (dangerous.test(cmd)) {
+        ctx.ui.notify("Blocked dangerous command!", "error");
+        return { block: true, reason: "NuPI: Dangerous command blocked for safety" };
+      }
+      if (cmd.includes("kill -9") || cmd.includes("kill -SIGKILL")) {
+        const pidMatch = cmd.match(/kill\s+-9\s+(\d+)/);
+        if (pidMatch) {
+          ctx.ui.notify(`NuPI: Process ${pidMatch[1]} kill blocked`, "warning");
+          return { block: true, reason: "NuPI: kill -9 blocked for safety" };
+        }
+      }
+    }
+  });
+
   pi.registerCommand("nupi-start", {
     description: "Start continuous work mode v2",
     handler: async () => {
