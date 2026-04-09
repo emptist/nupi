@@ -1,14 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NuPIClient, getNuPIClient, type TaskRow, type HealthResponse } from './NuPIClient.js';
 
+declare global {
+  function fetch(url: string | URL | Request, init?: RequestInit | undefined): Promise<Response>;
+}
+
 describe('NuPIClient', () => {
   let client: NuPIClient;
-  let fetchMock: ReturnType<typeof vi.fn>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let fetchMock: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
     fetchMock = vi.fn();
-    global.fetch = fetchMock;
+    globalThis.fetch = fetchMock;
     client = new NuPIClient('http://127.0.0.1:4099');
   });
 
