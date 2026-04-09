@@ -5,6 +5,12 @@
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "pi": {
+    "extensions": [
+      "./extensions/nupi-tools.ts",
+      "./extensions/nupi-autowork.ts"
+    ]
+  },
   "exports": {
     ".": {
       "import": "./dist/index.js",
@@ -25,6 +31,7 @@
   "author": "emptist",
   "license": "MIT",
   "dependencies": {
+    "dotenv": "^17.4.1",
     "nezha": "^0.1.0",
     "pg": "^8.11.0"
   },

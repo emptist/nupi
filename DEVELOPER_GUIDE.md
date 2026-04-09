@@ -102,15 +102,31 @@ node ./node_modules/.bin/nezha areflect --learnings
 
 ## Pi Extensions
 
-### 部署
+### 正确安装方式
+
+**不要手动复制文件到 `~/.pi/agent/extensions/`**！
+
+应该用 `pi install` 安装：
 
 ```bash
-# 复制扩展到 Pi
-cp extensions/*.ts ~/.pi/agent/extensions/
+# 1. 在 package.json 添加配置
+# {
+#   "pi": {
+#     "extensions": ["./extensions/nupi-tools.ts"]
+#   }
+# }
 
-# 复制 memory
-cp .memory/*.md ~/.pi/agent/extensions/
+# 2. 安装
+pi install ./
+
+# 3. 验证
+pi list
 ```
+
+**好处**:
+- Pi 自动管理扩展
+- 版本同步
+- 不污染系统目录
 
 ### Commands
 

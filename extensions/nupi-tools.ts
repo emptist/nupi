@@ -2,7 +2,7 @@
  * NuPI Tools Extension for Pi
  *
  * Provides access to NuPI (Nezha united with PI) via HTTP API.
- * Uses HTTP calls to port 4099 (Nezha API server).
+ * Uses fetch() to call port 4099 - no external dependencies.
  */
 
 import type { ExtensionAPI } from '@mariozechner/pi-coding-agent';
@@ -30,9 +30,7 @@ export default function nupiTools(pi: ExtensionAPI): void {
       try {
         const result = await apiRequest<{ rows: any[] }>('/tasks?status=PENDING&limit=10');
         if (!result.rows.length) return 'No pending tasks';
-        return result.rows
-          .map((t) => `[P${t.priority}] ${t.title}`)
-          .join('\n');
+        return result.rows.map((t) => `[P${t.priority}] ${t.title}`).join('\n');
       } catch (error) {
         return `[NuPI] Error: ${error instanceof Error ? error.message : String(error)}`;
       }
@@ -41,9 +39,9 @@ export default function nupiTools(pi: ExtensionAPI): void {
 
   pi.registerCommand('nupi-task-take', {
     description: 'Take a task by ID',
-    handler: async (id: string) => {
+    handler: async (id?: string) => {
       try {
-        await apiRequest<{ id: string }>(`/tasks/${id.trim()}/status`, 'PUT', { status: 'RUNNING' });
+        await apiRequest<{ id: string }>(`/tasks/${(id || '').trim()}/status`, 'PUT', { status: 'RUNNING' });
         return `Task ${id} taken`;
       } catch (error) {
         return `[NuPI] Error: ${error instanceof Error ? error.message : String(error)}`;
@@ -53,9 +51,9 @@ export default function nupiTools(pi: ExtensionAPI): void {
 
   pi.registerCommand('nupi-task-done', {
     description: 'Complete a task by ID',
-    handler: async (taskId: string) => {
+    handler: async (taskId?: string) => {
       try {
-        await apiRequest<{ id: string }>(`/tasks/${taskId.trim()}/status`, 'PUT', { status: 'COMPLETED' });
+        await apiRequest<{ id: string }>(`/tasks/${(taskId || '').trim()}/status`, 'PUT', { status: 'COMPLETED' });
         return `Task ${taskId} completed`;
       } catch (error) {
         return `[NuPI] Error: ${error instanceof Error ? error.message : String(error)}`;
@@ -77,10 +75,10 @@ export default function nupiTools(pi: ExtensionAPI): void {
   });
 
   pi.registerCommand('nupi-learn', {
-    description: 'Save learning insight via NuPI API',
-    handler: async (insight: string) => {
+    description: 'Save learning insight',
+    handler: async (insight?: string) => {
       try {
-        await apiRequest<{ id: string }>('/memory', 'POST', { content: insight, tags: ['learn', 'pi'] });
+        await apiRequest<{ id: string }>('/memory', 'POST', { content: insight || '', tags: ['learn', 'pi'] });
         return 'Saved!';
       } catch (error) {
         return `[NuPI] Error: ${error instanceof Error ? error.message : String(error)}`;
@@ -89,14 +87,12 @@ export default function nupiTools(pi: ExtensionAPI): void {
   });
 
   pi.registerCommand('nupi-search', {
-    description: 'Search memory via NuPI API',
-    handler: async (queryStr: string) => {
+    description: 'Search memory',
+    handler: async (queryStr?: string) => {
       try {
-        const results = await apiRequest<{ rows: any[] }>(`/memory/search?q=${encodeURIComponent(queryStr)}&limit=5`);
+        const results = await apiRequest<{ rows: any[] }>(`/memory/search?q=${encodeURIComponent(queryStr || '')}&limit=5`);
         if (!results.rows.length) return 'No results';
-        return results.rows
-          .map((r) => `${r.created_at}: ${(r.content || '').substring(0, 80)}...`)
-          .join('\n');
+        return results.rows.map((r) => `${r.created_at}: ${(r.content || '').substring(0, 80)}...`).join('\n');
       } catch (error) {
         return `[NuPI] Error: ${error instanceof Error ? error.message : String(error)}`;
       }
@@ -122,13 +118,7 @@ export default function nupiTools(pi: ExtensionAPI): void {
         const result = await apiRequest<{ rows: any[] }>('/tasks?status=PENDING&limit=3');
         if (!result.rows.length) return 'No tasks. Check issues instead.';
         const t = result.rows[0];
-        return `Next task [P${t.priority}]: ${t.title}
-ID: ${t.id}
-
-Actions:
-1. nupi-task-take ${t.id}
-2. Do the work
-3. nupi-task-done ${t.id}`;
+        return `Next task [P${t.priority}]: ${t.title}\nID: ${t.id}\n\nActions:\n1. nupi-task-take ${t.id}\n2. Do the work\n3. nupi-task-done ${t.id}`;
       } catch (error) {
         return `[NuPI] Error: ${error instanceof Error ? error.message : String(error)}`;
       }
