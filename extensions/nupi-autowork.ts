@@ -242,9 +242,11 @@ export default function nezhaAutoWork(pi: ExtensionAPI): void {
         return;
       }
       const { execSync } = await import('child_process');
+      const nezhaDir = process.env.NEZHA_DIR || '/Users/jk/gits/hub/tools_ai/nezha';
+      const safeMessage = args.replace(/"/g, '\\"').replace(/;/g, '\\;');
       try {
         execSync(
-          `cd /Users/jk/gits/hub/tools_ai/nezha && node ./dist/cli/index.js share "${args.replace(/"/g, '\\"')}"`,
+          `cd ${nezhaDir} && node ./dist/cli/index.js share "${safeMessage}"`,
           { encoding: 'utf-8', timeout: 10000 }
         );
         ctx.ui.notify('Broadcast sent!', 'info');
