@@ -2,178 +2,153 @@
 
 **NuPI** = Nezha united with PI
 
-**独立系统**，完全不依赖 OpenCode。
+**独立 AI 系统**，通过 HTTP API 与 Nezha 协作，不依赖 MCP。
 
 ---
 
-## 如何在项目中使用 NuPI
+## 快速开始
 
-### 前提条件
-
-1. PostgreSQL 数据库 (`nezha` 数据库存在)
-2. Pi (TUI 前端) 已安装
-3. 或者使用本地 npm link 模式（开发时）
-
-### 方式 1：作为 Pi 扩展（推荐）
+### 启动 NuPI
 
 ```bash
-# 1. 复制扩展到 Pi
-cp nupi/extensions/*.ts ~/.pi/agent/extensions/
-
-# 2. 复制 skill 到 Pi
-cp -r nupi/skills/ ~/.pi/agent/skills/
-
-# 3. 重启 Pi
-pi .
+nupi              # 启动 NuPI 模式 (本地 LLM)
 ```
 
-扩展会自动注册以下命令：
+这会启动 Pi 并加载 NuPI 扩展。
 
-| 命令           | 说明         |
-| -------------- | ------------ |
-| `nupi-tasks`  | 查看待办任务 |
-| `nupi-issues` | 查看开放问题 |
-| `nupi-status` | 系统状态     |
-| `nupi-work`   | 自主工作模式 |
-| `nupi-learn`  | 保存学习     |
-| `nupi-search` | 搜索记忆     |
+### 命令
 
-### 方式 2：本地开发模式（现在就能用）
-
-```bash
-# 1. 链接本地 nezha（如果还没链接）
-cd ~/gits/hub/your-project
-npm link nezha
-
-# 2. 链接 NuPI
-npm link @nezha/nupi
-```
-
-### 方式 3：独立 npm 包（待发布）
-
-```bash
-npm install @nezha/nupi
-```
-
-### 使用示例
-
-```typescript
-import { PiExecutor } from "@nezha/nupi";
-
-// 执行 Pi 任务
-const executor = new PiExecutor({
-  model: "llama3.2:3b",
-});
-
-const result = await executor.execute(`
-你是 Nezha AI 助手。
-任务：修复登录 bug
-描述：用户无法使用社交账号登录
-`);
-
-console.log(result.message);
-console.log(result.success);
-```
-
-### 环境变量
-
-```bash
-# 数据库
-NEZHA_DB_NAME=nezha
-NEZHA_DB_HOST=localhost
-NEZHA_DB_PORT=5432
-
-# Pi 模型（可选）
-PI_MODEL=llama3.2:3b
-```
-
----
-
-## Workspace
-
-NuPI 是 Nezha monorepo 的子系统：
-
-```json
-{
-  "name": "@nezha/nupi",
-  "dependencies": { "nezha": "^0.1.0" }
-}
-```
-
-### 未来：独立 npm 包
-
-搬出 monorepo 后：
-
-```bash
-npm install @nezha/nupi
-```
+| 命令 | 说明 |
+|------|------|
+| `/nupi-status` | 系统状态 (tasks, issues, memory) |
+| `/nupi-tasks` | 查看待办任务 |
+| `/nupi-task-take <id>` | 领取任务 |
+| `/nupi-task-done <id>` | 完成任务 |
+| `/nupi-issues` | 查看开放问题 |
+| `/nupi-learn <insight>` | 保存学习 |
+| `/nupi-search <query>` | 搜索记忆 |
+| `/nupi-work` | 自主工作模式 |
 
 ---
 
 ## 架构
 
 ```
-NuPI = Pi (TUI前端) + Nezha (后端服务)
+NuPI (本地 LLM) ←HTTP API (4099)→ Nezha (PostgreSQL)
 ```
 
-- **Pi**: 交互界面，工具执行
-- **Nezha**: 数据库，任务/记忆/学习
+- **NuPI**: 执行层，使用 Pi + 本地 LLM (Ollama)
+- **Nezha**: 服务层，提供 API (port 4099)、数据库、任务系统
 
-## 启动方式
+### API 端点
 
-### 方式 1：nupi 命令（推荐）
+Nezha API server 运行在 `http://127.0.0.1:4099`:
+
+| 端点 | 说明 |
+|------|------|
+| `/health` | 健康检查 |
+| `/tasks` | 任务 CRUD |
+| `/issues` | 问题 CRUD |
+| `/memory` | 记忆 CRUD |
+| `/status` | 系统状态 |
+| `/broadcasts` | 广播 |
+| `/identity` | AI 身份 |
+
+---
+
+## 使用 nezha CLI
+
+NuPI 项目已 npm link nezha，可以直接使用：
 
 ```bash
-nupi              # 启动 NuPI 模式 (本地 LLM)
+# 查看任务
+node ./node_modules/.bin/nezha tasks
+
+# 查看 issues
+node ./node_modules/.bin/nezha issues list
+
+# 广播
+node ./node_modules/.bin/nezha share "message"
+
+# 保存学习 (areflect)
+node ./node_modules/.bin/nezha areflect "[LEARN] insight: 学到的内容"
+
+# 检查待办
+node ./node_modules/.bin/nezha areflect --check
 ```
 
-### 直接 Pi 扩展
+---
+
+## 开发
+
+### Prerequisites
+
+- Node.js 20+
+- PostgreSQL (nezha database)
+- Pi (TUI)
+- `npm link nezha`
+
+### Setup
 
 ```bash
-pi ~/.pi/agent/extensions/nupi-tools.ts
+npm install
+npm link nezha
+npm run build
 ```
+
+### Commands
+
+```bash
+npm run typecheck  # 类型检查
+npm run build      # 构建
+npm run test      # 测试
+```
+
+### Pi 扩展部署
+
+```bash
+# 复制扩展
+cp extensions/*.ts ~/.pi/agent/extensions/
+
+# 复制 memory
+cp .memory/*.md ~/.pi/agent/extensions/
+```
+
+---
 
 ## 目录结构
 
 ```
 nupi/
-├── src/           # NuPI 核心代码 (未来 npm 包)
-├── extensions/    # Pi 扩展
-│   ├── nupi-tools.ts      # 数据库/CLI 工具
-│   └── nupi-autowork.ts   # 永续工作循环
-└── skills/        # Pi Skills
-    └── nupi-abc/
-        └── SKILL.md   # AI 必读文档
+├── src/
+│   └── services/
+│       ├── NuPIClient.ts     # HTTP API 客户端
+│       ├── PiExecutor.ts     # 本地 LLM 执行器
+│       └── PiSDKExecutor.ts # Pi SDK 执行器
+├── extensions/
+│   ├── nupi-tools.ts         # 数据库工具 (HTTP API)
+│   └── nupi-autowork.ts      # 永续工作循环 v2.1
+├── skills/
+│   └── nupi-abc/SKILL.md     # AI 必读
+└── .memory/                  # 启动记忆
+    └── MEMORY.md
 ```
 
-## AI 协作系统
+---
 
-### GitHub 同步服务
+## 与其他项目关系
 
-高优先级 issues 自动同步到 GitHub (emptist/nezha#11)：
-- 使用 `[ISSUE] severity:high` 触发同步
-- 解决 450+ pending issues 噪声问题
-- 人类可见，易于参与
-
-### 双渠道 Issue 系统
-
-| 渠道 | 用途 |
+| 项目 | 职责 |
 |------|------|
-| nezha DB | 任务追踪、AI 协作 |
-| GitHub | 讨论、@mentions、人类可见 |
+| NuPI | 独立 AI，使用本地 LLM |
+| Nezha | 数据库服务，API server |
+| Piano | NuPI + OpenCode (任务路由) |
 
-### AI 间协作命令
-
-```bash
-nezha share <message>     # 广播到所有 AI
-nezha tasks --tag nupi    # 查看 NuPI 任务
-nezha issues --status open # 查看开放问题
-nezha learn <insight>     # 保存学习
-```
+---
 
 ## 本地 LLM
 
-- **Model**: llama3.2:3b (Ollama)
-- **Embedding**: nomic-embed-text (Ollama)
+- **Model**: glm-5, llama3.2:3b 等
+- **Embedding**: nomic-embed-text
 
 零 API 成本，24/7 运行。

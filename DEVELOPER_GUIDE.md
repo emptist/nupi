@@ -6,118 +6,22 @@
 
 | 项目 | 职责 |
 |------|------|
-| NuPI | 独立 AI，使用 Pi 执行任务 |
-| Nezha | 数据库服务（共享） |
-| Piano | NuPI + OpenCode |
-
----
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js 20+
-- PostgreSQL (nezha database)
-- Pi (TUI) installed (optional, only for TUI mode)
-- npm link to nezha: `npm link nezha`
-
-**NuPI is independent** - no MCP, no OpenCode dependency required!
-
-### Setup
-
-```bash
-# Install dependencies
-npm install
-
-# Link nezha (npm package)
-npm link nezha
-
-# Build
-npm run build
-```
-
-### Development Workflow
-
-1. Make changes in nupi
-2. Test with `npm run typecheck`
-3. Build with `npm run build`
-4. Commit (hook will add agent ID)
-5. Push to remote
-
-### Git Branch Strategy
-
-- `master` - stable
-- `fix/*` - bug fixes
-- `feat/*` - new features
+| NuPI | 独立 AI，使用 Pi + 本地 LLM |
+| Nezha | 数据库服务 + API server (port 4099) |
+| Piano | NuPI + OpenCode (任务路由) |
 
 ---
 
 ## Architecture
 
 ```
-NuPI = Pi + Nezha (二合一)
+NuPI ←HTTP API (4099)→ Nezha (PostgreSQL)
 ```
 
-- Local LLM execution (Ollama)
-- Zero API cost
-- Cross-AI collaboration via shared PostgreSQL
+- **NuPI**: 执行层，Pi + 本地 LLM (Ollama)
+- **Nezha**: 服务层，API + DB + 任务/记忆/广播
 
-### Cross-AI Collaboration
-
-NuPI works with other AIs through shared database:
-
-```bash
-# Broadcast to all AIs
-node ./node_modules/.bin/nezha share "message"
-
-# Create issue
-node ./node_modules/.bin/nezha areflect "[ISSUE] title: ..."
-
-# Check tasks
-node ./node_modules/.bin/nezha tasks --status PENDING
-```
-
----
-
-## Key Files
-
-| File | Purpose |
-|------|---------|
-| `src/services/PiExecutor.ts` | Execute local LLM via CLI |
-| `src/services/PiSDKExecutor.ts` | Execute via Pi SDK |
-| `src/services/NuPIHeartbeatService.ts` | Heartbeat service (uses nezha) |
-| `src/services/TraeAutoRecoveryService.ts` | Trae integration |
-| `src/services/TraeSkillSyncService.ts` | Trae skill sync |
-
----
-
-## Using nezha npm Package
-
-NuPI can reuse nezha's exported functionality:
-
-```typescript
-// Reuse HeartbeatService
-import { HeartbeatService, Config, logger } from 'nezha';
-import { DatabaseClient } from 'nezha/dist/db/DatabaseClient.js';
-
-const db = new DatabaseClient(Config.getInstance());
-const heartbeat = new HeartbeatService(db, {
-  heartbeatIntervalMs: 60000,
-  enableReminder: true,
-});
-await heartbeat.start();
-```
-
-**Available exports from nezha**:
-- `HeartbeatService` - heartbeat service
-- `Config` - configuration
-- `logger` - logging
-- `TASK_STATUS`, `DATABASE_TABLES` - constants
-- `ReminderTemplateService` - reminder templates
-
-### NuPIClient API
-
-NuPIClient 提供 HTTP API 访问 nezha 服务：
+### NuPIClient
 
 ```typescript
 import { getNuPIClient } from '@nezha/nupi';
@@ -130,79 +34,126 @@ await api.updateTaskStatus(taskId, 'RUNNING');
 
 // Issues
 const issues = await api.getIssues(10);
-await api.updateTaskError(taskId, 'error message');
-
-// Broadcasts
-await api.sendBroadcast('message', { priority: 'high' });
-const broadcasts = await api.getBroadcasts(5);
 
 // Memory
-await api.saveMemory('learned something', ['tag1', 'tag2']);
+await api.saveMemory('learned', ['tag']);
 const results = await api.searchMemory('query');
 
 // System
 const status = await api.getSystemStatus();
-const health = await api.isHealthy();
-
-// Extended API (v2.1+)
-await api.getReminderTemplate('default_reminder');
-await api.getAllReminderTemplates();
-await api.getHealthStatus();
-await api.getTableDocumentation('tasks');
-await api.searchCodebase('search term');
-await api.getAgentSessions();
-await api.triggerReminder();
 ```
 
-### PiExecutor 增强
+---
 
-PiExecutor 新增 `findWorkFromNezha()` 方法：
+## Getting Started
 
-```typescript
-import { getPiExecutor } from '@nezha/nupi';
+### Prerequisites
 
-const executor = getPiExecutor();
-const work = await executor.findWorkFromNezha();
+- Node.js 20+
+- PostgreSQL (nezha database)
+- Pi (TUI)
+- `npm link nezha`
 
-// work: { type: 'task' | 'issue' | 'broadcast', id, title, description?, priority?, severity? }
+### Setup
+
+```bash
+npm install
+npm link nezha
+npm run build
+```
+
+### Development Workflow
+
+1. 修改代码
+2. `npm run typecheck`
+3. `npm run build`
+4. 提交 (包含 task ID)
+5. 推送到远程
+
+---
+
+## Using nezha CLI
+
+NuPI 已 npm link nezha，直接使用：
+
+```bash
+# 查看任务
+node ./node_modules/.bin/nezha tasks
+
+# 查看 issues
+node ./node_modules/.bin/nezha issues list
+
+# 广播
+node ./node_modules/.bin/nezha share "message"
+
+# areflect - 保存学习/创建 issue/task
+node ./node_modules/.bin/nezha areflect "[LEARN] insight: ..."
+node ./node_modules/.bin/nezha areflect "[ISSUE] title: ... severity:high"
+node ./node_modules/.bin/nezha areflect "[TASK] title: ... priority:8"
+
+# 检查待办
+node ./node_modules/.bin/nezha areflect --check
+
+# 查看最近学习
+node ./node_modules/.bin/nezha areflect --learnings
 ```
 
 ---
 
 ## Pi Extensions
 
-Extensions are in two locations (must sync both):
-
-| Location | Purpose |
-|----------|---------|
-| `extensions/*.ts` | Source code (git tracked) |
-| `~/.pi/agent/extensions/` | Runtime (deployed) |
-
-### Deploy to Pi
+### 部署
 
 ```bash
-# Copy extensions to Pi
+# 复制扩展到 Pi
 cp extensions/*.ts ~/.pi/agent/extensions/
 
-# Copy skills
-cp -r skills/* ~/.pi/agent/skills/
-
-# Copy memory
-cp -r .memory/* ~/.pi/agent/extensions/
+# 复制 memory
+cp .memory/*.md ~/.pi/agent/extensions/
 ```
 
-### Pi Extension Commands
+### Commands
 
-Extensions in two locations (must sync):
+| Command | Description |
+|---------|-------------|
+| `/nupi-tasks` | List pending tasks |
+| `/nupi-task-take <id>` | Take a task |
+| `/nupi-task-done <id>` | Complete a task |
+| `/nupi-issues` | List open issues |
+| `/nupi-learn <insight>` | Save learning |
+| `/nupi-search <query>` | Search memory |
+| `/nupi-status` | System status |
+| `/nupi-work` | Autonomous work mode |
 
-| Location | Purpose |
-|----------|---------|
-| `extensions/*.ts` | Source code (git tracked) |
-| `~/.pi/agent/extensions/` | Pi runtime |
+---
 
-**与 Piano 共享** - `nupi-tools.ts` 在两个项目使用相同模式：
-- NuPI: 直接使用 `src/services/NuPIClient.ts`
-- Piano: 通过 HTTP API 调用 NuPI 服务
+## nupi-autowork v2.1
+
+自动工作循环：
+
+1. 会话启动时检查并确保 Nezha API 运行
+2. 每 2 分钟自动检查任务/issue/broadcast
+3. 主动推送工作给 AI（不需要等人类分配）
+
+```typescript
+// 自动启动 nezha 如果未运行
+await ensureNezhaApiRunning();
+
+// 定期检查工作
+setInterval(checkAndDeliverWork, 2 * 60 * 1000);
+```
+
+---
+
+## Key Files
+
+| File | Purpose |
+|------|---------|
+| `src/services/NuPIClient.ts` | HTTP API 客户端 (port 4099) |
+| `src/services/PiExecutor.ts` | 本地 LLM 执行器 |
+| `src/services/PiSDKExecutor.ts` | Pi SDK 执行器 |
+| `extensions/nupi-tools.ts` | Pi 扩展 - 数据库工具 |
+| `extensions/nupi-autowork.ts` | Pi 扩展 - 永续工作循环 |
 
 ---
 
@@ -214,108 +165,60 @@ npm run build      # Build
 npm run test      # Tests
 ```
 
-### nupi Launch Script
+---
 
-NuPI launcher at `/usr/local/bin/nupi`:
+## Git Branch Strategy
 
-```bash
-nupi              # Start NuPI mode (local LLM)
-```
-
-### Using nezha CLI
-
-```bash
-# View tasks
-node ./node_modules/.bin/nezha tasks
-
-# View issues
-node ./node_modules/.bin/nezha issues list
-
-# Share message
-node ./node_modules/.bin/nezha share "message"
-
-# Create issue/task/learning (areflect)
-node ./node_modules/.bin/nezha areflect "[ISSUE] title: ..."
-node ./node_modules/.bin/nezha areflect "[TASK] title: ... priority:8"
-node ./node_modules/.bin/nezha areflect "[LEARN] insight: ..."
-```
-
-### nezha areflect - 不需要 MCP
-
-NuPI 已 npm link nezha，可以直接使用 nezha CLI 保存学习，不需要 MCP：
-
-```bash
-# 保存学习（推荐方式）
-node ./node_modules/.bin/nezha areflect "[LEARN] insight: 学到的内容 context: 上下文"
-
-# 检查待办
-node ./node_modules/.bin/nezha areflect --check
-
-# 查看最近学习
-node ./node_modules/.bin/nezha areflect --learnings
-```
-
-支持的标记：`[ISSUE]`、`[TASK]`、`[LEARN]`、`[ANNOUNCE]`、`[SCHEDULE]`
+- `master` - stable
+- `phase2-nupi-cleanup` - 当前开发分支
+- `fix/*` - bug fixes
+- `feat/*` - new features
 
 ---
 
-## Pi 启动时自动加载
+## Cross-AI Collaboration
 
-Pi 启动时会自动加载以下内容：
-
-### 1. Skills (自动读取)
-
-`skills/` 目录下的 SKILL.md 会在每次新会话开始时自动读取：
+通过共享数据库协作：
 
 ```bash
-skills/nupi-abc/SKILL.md  # 会被自动加载
+# 广播
+nezha share "message"
+
+# 创建 issue/task
+nezha areflect "[ISSUE] title: ..."
+
+# 保存学习
+nezha areflect "[LEARN] insight: ..."
 ```
-
-SKILL.md 中的 `triggers` 字段定义触发条件。
-
-### 2. .memory 目录 (需要复制)
-
-`.memory/MEMORY.md` 需要手动复制到 Pi 运行时目录：
-
-```bash
-# 部署时复制
-cp -r .memory/* ~/.pi/agent/extensions/
-```
-
-### 3. Extensions (手动加载)
-
-扩展需要在 Pi 启动时手动启用，或复制到 `~/.pi/agent/extensions/`
 
 ---
 
-## Important Notes
+## NuPI 与 Piano 共享
 
-1. **NuPI is independent** - doesn't need OpenCode or MCP
-2. **npm link nezha** - can reuse nezha's exported functionality
-3. **Sync Pi extensions** - update both source and `~/.pi/agent/extensions/`
-4. **Cross-AI** - use shared database for collaboration
+`nupi-tools.ts` 在两个项目使用相同模式：
+
+- **NuPI**: 直接使用 NuPIClient
+- **Piano**: 通过 HTTP API 调用
 
 ---
 
 ## Troubleshooting
 
-### CLI not working
+### Port 4099 未运行
 
-If `nezha` command fails with "import: command not found", use:
 ```bash
-node ./node_modules/.bin/nezha tasks
+# 启动 Nezha
+cd ~/gits/hub/tools_ai/nezha
+node ./dist/cli/index.js start
 ```
 
-This is a known bug - nezha CLI missing shebang.
+### 数据库连接
 
-### Database connection
-
-Ensure PostgreSQL is running:
 ```bash
 psql -U postgres -d nezha -c "SELECT 1;"
 ```
 
-Set env vars if needed:
+环境变量：
 ```bash
 NEZHA_DB_HOST=localhost
 NEZHA_DB_PORT=5432
@@ -324,28 +227,10 @@ NEZHA_DB_NAME=nezha
 
 ---
 
-## GitHub Integration
+## Important Notes
 
-### GitHub Sync Service
-
-High priority issues (severity: high/critical) automatically sync to GitHub:
-- GitHub: https://github.com/emptist/nezha
-- Uses `[ISSUE] severity:high` trigger
-- Solves 450+ pending issues noise problem
-
-### Dual-Channel Issue System
-
-| Channel | Purpose |
-|---------|---------|
-| nezha DB | Task tracking, AI collaboration |
-| GitHub | Discussions, @mentions, human visible |
-
-### Creating GitHub Issues
-
-```bash
-# Via nezha reflection (auto-syncs high priority)
-node ./node_modules/.bin/nezha areflect "[ISSUE] title: ... severity:high"
-
-# Via GitHub CLI
-gh issue create --repo emptist/nezha --title "Title" --body "Body"
-```
+1. **NuPI is independent** - 不需要 OpenCode 或 MCP
+2. **npm link nezha** - 可直接使用 nezha CLI 和模块
+3. **Sync Pi extensions** - 更新后复制到 `~/.pi/agent/extensions/`
+4. **HTTP API** - 使用 port 4099 与 Nezha 通信
+5. **areflect** - 不需要 MCP，直接用 nezha CLI
