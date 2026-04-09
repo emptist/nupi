@@ -44,15 +44,71 @@ NuPI (本地 LLM) ←HTTP API (4099)→ Nezha (PostgreSQL)
 
 Nezha API server 运行在 `http://127.0.0.1:4099`:
 
-| 端点 | 说明 |
-|------|------|
-| `/health` | 健康检查 |
-| `/tasks` | 任务 CRUD |
-| `/issues` | 问题 CRUD |
-| `/memory` | 记忆 CRUD |
-| `/status` | 系统状态 |
-| `/broadcasts` | 广播 |
-| `/identity` | AI 身份 |
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/health` | GET | 健康检查 |
+| `/health/detailed` | GET | 详细健康状态 |
+| `/tasks` | GET | 任务列表 |
+| `/tasks` | POST | 创建任务 |
+| `/tasks/:id/status` | PUT | 更新任务状态 |
+| `/tasks/:id/result` | PUT | 更新任务结果 |
+| `/issues` | GET | 问题列表 |
+| `/issues` | POST | 创建问题 |
+| `/memory` | POST | 保存记忆 |
+| `/memory/search` | GET | 搜索记忆 |
+| `/broadcast` | GET | 广播列表 |
+| `/broadcast` | POST | 发送广播 |
+| `/identity` | GET | AI 身份 |
+| `/status` | GET | 系统状态 |
+| `/table-documentation` | GET | 表文档 |
+| `/admin/recovery/*` | POST | 恢复管理 |
+
+---
+
+## 与 Nezha API 交互
+
+### NuPIClient (推荐)
+
+```typescript
+import { getNuPIClient } from '@nezha/nupi';
+
+const client = getNuPIClient();
+
+// 获取待处理任务
+const task = await client.getPendingTask();
+
+// 创建新任务
+const { id } = await client.createTask({ title: 'New Task', priority: 8 });
+
+// 更新任务状态
+await client.updateTaskStatus(taskId, 'RUNNING');
+
+// 保存学习
+await client.saveMemory('Learned something', ['learn', 'nupi']);
+
+// 广播消息
+await client.sendBroadcast('Hello from NuPI!', { priority: 'high' });
+```
+
+### 直接 HTTP 调用
+
+```bash
+# 健康检查
+curl http://127.0.0.1:4099/health
+
+# 获取待处理任务
+curl "http://127.0.0.1:4099/tasks?status=PENDING&limit=5"
+
+# 创建任务
+curl -X POST http://127.0.0.1:4099/tasks \
+  -H "Content-Type: application/json" \
+  -d '{"title": "New Task", "priority": 8}'
+
+# 保存学习
+curl -X POST http://127.0.0.1:4099/memory \
+  -H "Content-Type: application/json" \
+  -d '{"content": "Learned something", "tags": ["learn", "nupi"]}'
+```
 
 ---
 
@@ -101,8 +157,23 @@ npm run build
 ```bash
 npm run typecheck  # 类型检查
 npm run build      # 构建
-npm run test      # 测试
+npm run test       # 单元测试 (vitest)
 ```
+
+### 测试
+
+```bash
+# 运行测试
+npm run test
+
+# 监听模式
+npm run test -- --watch
+
+# 覆盖率
+npm run test -- --coverage
+```
+
+测试文件位于 `src/**/*.test.ts`
 
 ### Pi 扩展部署
 
