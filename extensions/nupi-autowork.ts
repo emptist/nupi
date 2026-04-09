@@ -5,8 +5,7 @@
  * 1. Checking for pending tasks on session start
  * 2. Prompting AI to check for work when idle
  * 3. Proactively finding work without user intervention
- *
- * This is PULL-based (AI queries when ready) not PUSH-based.
+ * 4. Using Pi agent-loop for real continuous work
  */
 
 import type { ExtensionAPI } from '@mariozechner/pi-coding-agent';
@@ -15,37 +14,78 @@ import { execSync } from 'child_process';
 const NEZHA_API_PORT = 4099;
 const NEZHA_API_HOST = 'localhost';
 
-async function isNezhaApiRunning(): Promise<boolean> {
-  return new Promise((resolve) => {
-    const net = require('net');
-    const socket = new net.Socket();
-    socket.setTimeout(1000);
-    socket.on('connect', () => {
-      socket.destroy();
-      resolve(true);
-    });
-    socket.on('timeout', () => {
-      socket.destroy();
-      resolve(false);
-    });
-    socket.on('error', () => {
-      resolve(false);
-    });
-    socket.connect(NEZHA_API_PORT, NEZHA_API_HOST);
-  });
+interface WorkItem {
+  type: 'task' | 'issue' | 'broadcast';
+  id: string;
+  title: string;
+  description?: string;
+  priority?: number;
+  severity?: string;
 }
 
-async function startNezha(): Promise<void> {
+async function isNezhaApiRunning(): Promise<boolean> {
+  try {
+    const res = await fetch('http://127.0.0.1:4099/health', { signal: AbortSignal.timeout(2000) });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+async function fetchWorkFromNezha(): Promise<WorkItem | null> {
+  try {
+    const res = await fetch('http://127.0.0.1:4099/tasks?status=PENDING&limit=1', {
+      signal: AbortSignal.timeout(5000),
+    });
+    if (res.ok) {
+      const data = await res.json() as { rows?: WorkItem[] };
+      if (data.rows && data.rows.length > 0) {
+        return { type: 'task', ...data.rows[0] };
+      }
+    }
+
+    const issueRes = await fetch('http://127.0.0.1:4099/issues?limit=3', {
+      signal: AbortSignal.timeout(5000),
+    });
+    if (issueRes.ok) {
+      const issueData = await issueRes.json() as { rows?: WorkItem[] };
+      if (issueData.rows && issueData.rows.length > 0) {
+        const highPriority = issueData.rows.find(i => i.severity === 'high' || i.severity === 'critical');
+        return highPriority ? { type: 'issue', ...highPriority } : { type: 'issue', ...issueData.rows[0] };
+      }
+    }
+
+    const broadcastRes = await fetch('http://127.0.0.1:4099/broadcast/5', {
+      signal: AbortSignal.timeout(5000),
+    });
+    if (broadcastRes.ok) {
+      const broadcastData = await broadcastRes.json() as { rows?: WorkItem[] };
+      if (broadcastData.rows && broadcastData.rows.length > 0) {
+        return { type: 'broadcast', ...broadcastData.rows[0] };
+      }
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+async function startNezha(): Promise<boolean> {
   console.log('[NuPI] Starting Nezha daemon...');
   try {
-    execSync('cd /Users/jk/gits/hub/tools_ai/nezha && nohup node ./dist/cli/index.js start > /tmp/nezha.log 2>&1 &', {
-      encoding: 'utf-8',
-      timeout: 5000,
-      shell: '/bin/bash',
+    const { spawn } = await import('child_process');
+    const child = spawn('node', ['./dist/cli/index.js', 'start'], {
+      cwd: process.env.NEZHA_DIR || '/Users/jk/gits/hub/tools_ai/nezha',
+      detached: true,
+      stdio: 'ignore',
     });
+    child.unref();
     console.log('[NuPI] Nezha daemon started.');
+    return true;
   } catch (e: any) {
     console.error('[NuPI] Failed to start Nezha daemon:', e.message);
+    return false;
   }
 }
 
@@ -53,18 +93,25 @@ async function ensureNezhaApiRunning(): Promise<void> {
   console.log('[NuPI] Checking Nezha daemon status...');
   const isRunning = await isNezhaApiRunning();
   if (!isRunning) {
-    console.log(`[NuPI] Nezha daemon not running on port ${NEZHA_API_PORT}, auto-starting...`);
-    await startNezha();
-    await new Promise((r) => setTimeout(r, 10000));
-    const nowRunning = await isNezhaApiRunning();
-    console.log(`[NuPI] Nezha daemon status after start: ${nowRunning ? 'RUNNING' : 'NOT RUNNING'}`);
+    console.log('[NuPI] Nezha daemon not running, auto-starting...');
+    const started = await startNezha();
+    if (started) {
+      for (let i = 0; i < 5; i++) {
+        await new Promise((r) => setTimeout(r, 2000));
+        const nowRunning = await isNezhaApiRunning();
+        if (nowRunning) {
+          console.log('[NuPI] Nezha daemon started successfully.');
+          return;
+        }
+      }
+      console.error('[NuPI] Failed to start Nezha daemon after retries.');
+    }
   } else {
-    console.log(`[NuPI] Nezha daemon already running on port ${NEZHA_API_PORT}`);
+    console.log('[NuPI] Nezha daemon already running.');
   }
 }
 
-const AUTO_WORK_PROMPT = `
-## NuPI Auto-Work Mode (v2.0)
+const AUTO_WORK_PROMPT = `## NuPI Auto-Work Mode (v2.1)
 
 You are NuPI (Nezha united with PI), an autonomous AI worker.
 Your goal: continuously find and complete work WITHOUT asking user.
@@ -105,8 +152,30 @@ When idle, automatically:
 `;
 
 export default function nezhaAutoWork(pi: ExtensionAPI): void {
-  pi.on('session_start', async () => {
-    console.log('[NuPI v2.0] Auto-work mode starting...');
+  let workCheckInterval: NodeJS.Timeout | null = null;
+  const WORK_CHECK_INTERVAL_MS = 2 * 60 * 1000;
+
+  async function checkAndDeliverWork(): Promise<void> {
+    const work = await fetchWorkFromNezha();
+    if (work) {
+      let message = '';
+      switch (work.type) {
+        case 'task':
+          message = `📋 **New Task**: ${work.title}\n\n${work.description || 'No description'}\n\nPriority: ${work.priority || 'normal'}`;
+          break;
+        case 'issue':
+          message = `⚠️ **New Issue**: ${work.title}\n\n${work.description || ''}\n\nSeverity: ${work.severity || 'unknown'}`;
+          break;
+        case 'broadcast':
+          message = `📢 **Broadcast**: ${work.title}`;
+          break;
+      }
+      pi.sendUserMessage(message, { deliverAs: 'steer' });
+    }
+  }
+
+  async function initialSetup(): Promise<void> {
+    console.log('[NuPI v2.1] Auto-work mode starting...');
     
     await ensureNezhaApiRunning();
 
@@ -117,6 +186,20 @@ export default function nezhaAutoWork(pi: ExtensionAPI): void {
         deliverAs: 'steer',
       });
     }, 3000);
+
+    setTimeout(checkAndDeliverWork, 5000);
+
+    workCheckInterval = setInterval(checkAndDeliverWork, WORK_CHECK_INTERVAL_MS);
+  }
+
+  pi.on('session_start', initialSetup);
+
+  pi.on('session_shutdown', () => {
+    console.log('[NuPI v2.1] Session ending, stopping work checks...');
+    if (workCheckInterval) {
+      clearInterval(workCheckInterval);
+      workCheckInterval = null;
+    }
   });
 
   pi.registerCommand('nupi-start', {
@@ -129,10 +212,25 @@ export default function nezhaAutoWork(pi: ExtensionAPI): void {
   pi.registerCommand('nupi-work', {
     description: 'Start autonomous work immediately',
     handler: async () => {
-      pi.sendUserMessage(
-        'Starting work cycle. Run: nupi-tasks, nupi-issues, check git status. Find something to do!',
-        { deliverAs: 'steer' }
-      );
+      await checkAndDeliverWork();
+    },
+  });
+
+  pi.registerCommand('nupi-status', {
+    description: 'Check NuPI and Nezha status',
+    handler: async (args: string, ctx: any) => {
+      const isRunning = await isNezhaApiRunning();
+      const work = await fetchWorkFromNezha();
+      
+      let statusMessage = `**NuPI Status**\n- Nezha API: ${isRunning ? '✅ Running' : '❌ Not running'}`;
+      
+      if (work) {
+        statusMessage += `\n- Next work: ${work.type}: ${work.title}`;
+      } else {
+        statusMessage += '\n- No pending work found';
+      }
+      
+      ctx.ui.notify(statusMessage, 'info');
     },
   });
 
@@ -156,5 +254,13 @@ export default function nezhaAutoWork(pi: ExtensionAPI): void {
     },
   });
 
-  console.log('[NuPI v2.0] Auto-work loaded with share command.');
+  pi.registerCommand('nupi-refresh', {
+    description: 'Manually trigger work check',
+    handler: async (args: string, ctx: any) => {
+      await checkAndDeliverWork();
+      ctx.ui.notify('Work check triggered', 'info');
+    },
+  });
+
+  console.log('[NuPI v2.1] Auto-work loaded with agent-loop integration.');
 }
