@@ -232,6 +232,51 @@ export class NuPIClient {
       memoryCount: number;
     }>('GET', '/status');
   }
+
+  async getReminderTemplate(name: string): Promise<unknown> {
+    return this.request<unknown>('GET', `/reminder-template/${name}`);
+  }
+
+  async getAllReminderTemplates(): Promise<unknown[]> {
+    const result = await this.request<{ rows?: unknown[] } | unknown[]>('GET', '/reminder-templates');
+    if (Array.isArray(result)) return result;
+    return result.rows || [];
+  }
+
+  async getBroadcastsDetailed(limit?: number): Promise<unknown> {
+    const path = limit ? `/broadcast/${limit}` : '/broadcast/20';
+    return this.request<unknown>('GET', path);
+  }
+
+  async getHealthStatus(): Promise<{
+    status: string;
+    services: Record<string, string>;
+    timestamp: string;
+  }> {
+    return this.request<{
+      status: string;
+      services: Record<string, string>;
+      timestamp: string;
+    }>('GET', '/health/detailed');
+  }
+
+  async getTableDocumentation(tableName?: string): Promise<unknown> {
+    const query = tableName ? `?table=${encodeURIComponent(tableName)}` : '';
+    return this.request<unknown>('GET', '/table-documentation' + query);
+  }
+
+  async searchCodebase(query: string, limit?: number): Promise<unknown> {
+    const q = `?q=${encodeURIComponent(query)}${limit ? `&limit=${limit}` : ''}`;
+    return this.request<unknown>('GET', '/code-search' + q);
+  }
+
+  async getAgentSessions(): Promise<unknown> {
+    return this.request<unknown>('GET', '/agent-sessions');
+  }
+
+  async triggerReminder(): Promise<{ triggered: boolean; message: string }> {
+    return this.request<{ triggered: boolean; message: string }>('POST', '/reminder/trigger');
+  }
 }
 
 let clientInstance: NuPIClient | null = null;
