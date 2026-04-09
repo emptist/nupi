@@ -1,5 +1,6 @@
 import { spawn } from 'child_process';
-import { logger } from 'nezha';
+import { logger, Config } from 'nezha';
+import { getNuPIClient } from './NuPIClient.js';
 
 export interface PiTaskResult {
   success: boolean;
@@ -13,6 +14,16 @@ export interface PiConfig {
   piPath?: string;
   model?: string;
   env?: Record<string, string>;
+  enableNezhaIntegration?: boolean;
+}
+
+export interface NezhaWorkItem {
+  type: 'task' | 'issue' | 'broadcast' | 'memory';
+  id: string;
+  title: string;
+  description?: string;
+  priority?: number;
+  severity?: string;
 }
 
 function execSafe(
@@ -199,6 +210,53 @@ export class PiExecutor {
         message: errorMessage,
         durationMs,
       };
+    }
+  }
+
+  async findWorkFromNezha(): Promise<NezhaWorkItem | null> {
+    const api = getNuPIClient();
+
+    try {
+      const task = await api.getPendingTask(1);
+      if (task) {
+        return {
+          type: 'task',
+          id: task.id,
+          title: task.title,
+          description: task.description || undefined,
+          priority: task.priority,
+        };
+      }
+
+      const systemStatus = await api.getSystemStatus();
+      if (systemStatus.openIssues > 0) {
+        const issues = await api.getIssues(3) as Array<{ id: string; title: string; severity?: string; description?: string }>;
+        const highPriorityIssue = issues.find(i => i.severity === 'high' || i.severity === 'critical');
+        if (highPriorityIssue) {
+          return {
+            type: 'issue',
+            id: highPriorityIssue.id,
+            title: highPriorityIssue.title,
+            description: highPriorityIssue.description || undefined,
+            severity: highPriorityIssue.severity,
+          };
+        }
+      }
+
+      const broadcasts = await api.getBroadcasts(5) as Array<{ id: string; message: string; priority?: string }>;
+      const importantBroadcast = broadcasts.find(b => b.priority === 'high');
+      if (importantBroadcast) {
+        return {
+          type: 'broadcast',
+          id: importantBroadcast.id,
+          title: importantBroadcast.message.substring(0, 100),
+        };
+      }
+
+      return null;
+    } catch (error) {
+      logger.error(`[PiExecutor] findWorkFromNezha failed: ${error instanceof Error ? error.message : error}`);
+      return null;
     }
   }
 }
