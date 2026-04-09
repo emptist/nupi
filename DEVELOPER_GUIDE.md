@@ -115,6 +115,58 @@ await heartbeat.start();
 - `TASK_STATUS`, `DATABASE_TABLES` - constants
 - `ReminderTemplateService` - reminder templates
 
+### NuPIClient API
+
+NuPIClient 提供 HTTP API 访问 nezha 服务：
+
+```typescript
+import { getNuPIClient } from '@nezha/nupi';
+
+const api = getNuPIClient();
+
+// Tasks
+const task = await api.getPendingTask(1);
+await api.updateTaskStatus(taskId, 'RUNNING');
+
+// Issues
+const issues = await api.getIssues(10);
+await api.updateTaskError(taskId, 'error message');
+
+// Broadcasts
+await api.sendBroadcast('message', { priority: 'high' });
+const broadcasts = await api.getBroadcasts(5);
+
+// Memory
+await api.saveMemory('learned something', ['tag1', 'tag2']);
+const results = await api.searchMemory('query');
+
+// System
+const status = await api.getSystemStatus();
+const health = await api.isHealthy();
+
+// Extended API (v2.1+)
+await api.getReminderTemplate('default_reminder');
+await api.getAllReminderTemplates();
+await api.getHealthStatus();
+await api.getTableDocumentation('tasks');
+await api.searchCodebase('search term');
+await api.getAgentSessions();
+await api.triggerReminder();
+```
+
+### PiExecutor 增强
+
+PiExecutor 新增 `findWorkFromNezha()` 方法：
+
+```typescript
+import { getPiExecutor } from '@nezha/nupi';
+
+const executor = getPiExecutor();
+const work = await executor.findWorkFromNezha();
+
+// work: { type: 'task' | 'issue' | 'broadcast', id, title, description?, priority?, severity? }
+```
+
 ---
 
 ## Pi Extensions
@@ -141,14 +193,16 @@ cp -r .memory/* ~/.pi/agent/extensions/
 
 ### Pi Extension Commands
 
-| Command | Description |
-|---------|-------------|
-| `nupi-tasks` | List pending tasks |
-| `nupi-issues` | List open issues |
-| `nupi-status` | System status |
-| `nupi-work` | Autonomous work mode |
-| `nupi-learn` | Save learning |
-| `nupi-search` | Search memory |
+Extensions in two locations (must sync):
+
+| Location | Purpose |
+|----------|---------|
+| `extensions/*.ts` | Source code (git tracked) |
+| `~/.pi/agent/extensions/` | Pi runtime |
+
+**与 Piano 共享** - `nupi-tools.ts` 在两个项目使用相同模式：
+- NuPI: 直接使用 `src/services/NuPIClient.ts`
+- Piano: 通过 HTTP API 调用 NuPI 服务
 
 ---
 
@@ -180,9 +234,57 @@ node ./node_modules/.bin/nezha issues list
 # Share message
 node ./node_modules/.bin/nezha share "message"
 
-# Create issue/task
+# Create issue/task/learning (areflect)
 node ./node_modules/.bin/nezha areflect "[ISSUE] title: ..."
+node ./node_modules/.bin/nezha areflect "[TASK] title: ... priority:8"
+node ./node_modules/.bin/nezha areflect "[LEARN] insight: ..."
 ```
+
+### nezha areflect - 不需要 MCP
+
+NuPI 已 npm link nezha，可以直接使用 nezha CLI 保存学习，不需要 MCP：
+
+```bash
+# 保存学习（推荐方式）
+node ./node_modules/.bin/nezha areflect "[LEARN] insight: 学到的内容 context: 上下文"
+
+# 检查待办
+node ./node_modules/.bin/nezha areflect --check
+
+# 查看最近学习
+node ./node_modules/.bin/nezha areflect --learnings
+```
+
+支持的标记：`[ISSUE]`、`[TASK]`、`[LEARN]`、`[ANNOUNCE]`、`[SCHEDULE]`
+
+---
+
+## Pi 启动时自动加载
+
+Pi 启动时会自动加载以下内容：
+
+### 1. Skills (自动读取)
+
+`skills/` 目录下的 SKILL.md 会在每次新会话开始时自动读取：
+
+```bash
+skills/nupi-abc/SKILL.md  # 会被自动加载
+```
+
+SKILL.md 中的 `triggers` 字段定义触发条件。
+
+### 2. .memory 目录 (需要复制)
+
+`.memory/MEMORY.md` 需要手动复制到 Pi 运行时目录：
+
+```bash
+# 部署时复制
+cp -r .memory/* ~/.pi/agent/extensions/
+```
+
+### 3. Extensions (手动加载)
+
+扩展需要在 Pi 启动时手动启用，或复制到 `~/.pi/agent/extensions/`
 
 ---
 
