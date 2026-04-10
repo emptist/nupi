@@ -220,14 +220,42 @@ export default function nezhaAutoWork(pi: ExtensionAPI): void {
     );
   }
 
-  pi.on("session_start", initialSetup);
+  pi.on("session_start", async (event, ctx) => {
+    console.log("[NuPI v2.1] Session starting, restoring state...");
 
-  pi.on("session_shutdown", () => {
-    console.log("[NuPI v2.1] Session ending, stopping work checks...");
+    for (const entry of ctx.sessionManager.getEntries()) {
+      if (entry.type === "custom" && entry.customType === "nupi-work-state") {
+        console.log("[NuPI] Restored work state:", entry.data);
+      }
+    }
+
+    await initialSetup();
+  });
+
+  pi.on("session_shutdown", async (_event, ctx) => {
+    console.log("[NuPI v2.1] Session ending, saving work state...");
+
     if (workCheckInterval) {
       clearInterval(workCheckInterval);
       workCheckInterval = null;
     }
+
+    pi.appendEntry("nupi-work-state", {
+      lastCheck: new Date().toISOString(),
+      workMode: "autonomous",
+    });
+  });
+
+  pi.on("before_agent_start", async (event, ctx) => {
+    ctx.ui.notify("NuPI: Agent starting work...", "info");
+  });
+
+  pi.on("turn_start", async (event, ctx) => {
+    console.log("[NuPI] Turn", event.turnIndex, "started");
+  });
+
+  pi.on("turn_end", async (event, ctx) => {
+    console.log("[NuPI] Turn", event.turnIndex, "ended");
   });
 
   pi.on("tool_call", async (event, ctx) => {
