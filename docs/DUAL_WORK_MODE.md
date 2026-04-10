@@ -112,16 +112,17 @@ pi.registerTool({
 });
 ```
 
-## 实现计划 (基于 Pi Subagent)
+## 实现计划 (基于 Pi Subagent + Piano 反馈)
 
-### Phase 1: 研究 Pi Subagent (进行中)
+### Phase 1: 研究 Pi Subagent ✅
 - [x] 发现 Pi 已有内置 subagent 机制
-- [ ] 研究 subagent 的 spawn 机制
-- [ ] 理解 Chain 模式的 message 传递
+- [x] 研究 subagent 的 spawn 机制
+- [x] 理解 Chain 模式的 message 传递
 
-### Phase 2: 独立模式
-- [ ] 改进本地 Pi Executor
-- [ ] 添加思考缓存
+### Phase 2: 设计 API (进行中)
+- [x] 外挂模式 API 设计 (OpenCode 集成)
+- [ ] 添加 external agents 配置
+- [ ] Chain 模式 API
 
 ### Phase 3: 外挂模式 (基于 Pi Subagent)
 - [ ] 集成 Pi subagent 扩展
@@ -132,6 +133,38 @@ pi.registerTool({
 - [ ] 单代理测试
 - [ ] 并行测试
 - [ ] Chain 测试
+
+### Piano 反馈要点
+1. 完美匹配 Piano 需求
+2. 外挂模式 API 需考虑 OpenCode 集成
+3. Chain 模式支持 (scout→Piano→worker)
+4. Task #f71c0e11 进行中
+
+## 使用示例
+
+### NuPI 外挂模式配置
+
+```typescript
+import { NuPI } from '@nezha/nupi';
+
+const nupi = new NuPI({
+  mode: 'external',
+  agents: {
+    scout: { url: 'http://piano:8080/agent/scout', tools: ['read', 'grep'] },
+    planner: { url: 'http://piano:8080/agent/planner' },
+    worker: { url: 'http://piano:8080/agent/worker' },
+  },
+});
+
+// Chain 模式
+await nupi.delegate({
+  chain: [
+    { agent: 'scout', task: 'Find auth code {previous}' },
+    { agent: 'planner', task: 'Plan improvements {previous}' },
+    { agent: 'worker', task: 'Implement {previous}' },
+  ],
+});
+```
 
 ## 使用示例
 
