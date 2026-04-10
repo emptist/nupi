@@ -4,6 +4,13 @@
 
 NuPI 设计两种工作模式，适配不同的使用场景。
 
+## 背景研究
+
+深入研究 pi-mono 源码后发现：
+- Pi 已有成熟的 **subagent 机制** (examples/extensions/subagent/)
+- 支持 spawn 独立 pi 进程执行
+- 支持 Single/Parallel/Chain 模式
+
 ## 模式 1: 独立模式 (Standalone Mode)
 
 **特点**: NuPI 自主工作，使用本地 Pi + 数据库，不依赖外部 AI。
@@ -11,15 +18,15 @@ NuPI 设计两种工作模式，适配不同的使用场景。
 ```
 ┌─────────────────────────────────┐
 │           NuPI                    │
-│  ┌─────────────────────────┐    │
-│  │   Local Pi          │    │
-│  │ (glm-4.5-flash)  │    │
-│  └─────────────────────────┘    │
-│              ↓                │
-│  ┌─────────────────────────┐    │
-│  │   PostgreSQL      │    │
-│  │ (tasks/issues)   │    │
-│  └─────────────────────────┘    │
+│  ┌─────────────────────────┐     │
+│  │   Local Pi              │     │
+│  │ (glm-4.5-flash)        │     │
+│  └─────────────────────────┘     │
+│              ↓                   │
+│  ┌─────────────────────────┐     │
+│  │   PostgreSQL          │     │
+│  │ (tasks/issues)        │     │
+│  └─────────────────────────┘     │
 └─────────────────────────────────┘
 ```
 
@@ -28,114 +35,103 @@ NuPI 设计两种工作模式，适配不同的使用场景。
 - 不需要外部 AI 协作
 - 离线工作
 
-**当前实现**:
-- `PiExecutor.execute()` - 本地执行
-- `NuPIClient` - 数据库操作
-- 自动工作循环 (nupi-autowork.ts)
-
 ## 模式 2: 外挂模式 (External Mode)
 
-**特点**: 思考能力通过 API 交付给外部 AI (Piano/OpenCode)，NuPI 只负责执行。
+**特点**: 思考能力通过 Pi 的 subagent 机制交付给外部 AI。
 
 ```
-┌─────────────────────────────────┐
-│           NuPI                    │
-│  ┌─────────────────────────┐    │
-│  │  Execution Only    │    │
-│  │ (no thinking)    │    │
-│  └─────────────────────────┘    │
-│              ↑ think()         │
-│              │ API           │
-│              ↓              │
-│  ┌─────────────────────────┐    │
-│  │   External AI        │    │
-│  │ (Piano/OpenCode)   │    │
-│  └─────────────────────────┘    │
-│              ↓ result          │
-│              ↓                │
-│  ┌─────────────────────────┐    │
-│  │   PostgreSQL      │    │
-│  └─────────────────────────┘    │
-└─────────────────────────────────┘
+┌───────────────────────────────────────────────────┐
+│                   NuPI                          │
+│                                                   │
+│  ┌─────────────────────────────────────────┐    │
+│  │    Pi with subagent extension            │    │
+│  │                                          │    │
+│  │  ┌─────────┐    ┌─────────┐             │    │
+│  │  │ scout   │ →  │ planner │ → worker    │    │
+│  │  └─────────┘    └─────────┘             │    │
+│  │       ↓              ↓                  │    │
+│  │  ┌───────────────────────────────────┐  │    │
+│  │  │  External AI (Piano/OpenCode)    │  │    │
+│  │  │     via pi subagent spawn         │  │    │
+│  │  └───────────────────────────────────┘  │    │
+│  └─────────────────────────────────────────┘    │
+│                         ↓                       │
+│  ┌─────────────────────────┐                  │
+│  │   PostgreSQL            │                  │
+│  └─────────────────────────┘                  │
+└───────────────────────────────────────────────────┘
 ```
 
-**使用场景**:
-- 本地模型不够强
-- 需要外部 AI 协作
-- Piano 完全控制思考过程
+### Pi Subagent 机制
 
-## 核心 API 设计
+Pi subagent 支持三种模式：
 
-### 1. 模式切换
+| 模式 | 参数 | 描述 |
+|------|------|------|
+| Single | `{ agent, task }` | 一个代理，一个任务 |
+| Parallel | `{ tasks: [...] }` | 并行执行 (最多8个，同时4个) |
+| Chain | `{ chain: [...] }` | 顺序执行 scout→planner→worker |
+
+### 子代理定义示例
+
+```markdown
+---
+name: my-agent
+description: What this agent does
+tools: read, grep, find, ls
+model: claude-sonnet-4-5
+---
+
+System prompt for the agent goes here.
+```
+
+### 外挂流程
+
+1. **定义子代理**: 连接到 Piano 的子代理配置
+2. **NuPI 调用**: 使用 `subagent` 工具
+3. **Piano 处理**: spawn 代理进程执行
+4. **返回结果**: pipeline 传回 NuPI
 
 ```typescript
-import { NuPI, WorkMode } from '@nezha/nupi';
-
-const nupi = new NuPI({
-  mode: 'standalone', // 或 'external'
-  externalApi: 'http://piano:8080/think',  // 外挂 API 地址
+// NuPI 调用外部子代理
+pi.registerTool({
+  name: "delegate",
+  parameters: Type.Object({
+    task: Type.String(),
+    mode: Type.Enum(["single", "parallel", "chain"]),
+    externalUrl: Type.String(),
+  }),
+  async execute(toolCallId, params, signal) {
+    // 调用外部 API
+    const result = await fetch(params.externalUrl, {
+      method: 'POST',
+      body: JSON.stringify({ task: params.task }),
+    });
+    return { content: [{ text: result.output }] };
+  },
 });
 ```
 
-### 2. think() - 思考接口
+## 实现计划 (基于 Pi Subagent)
 
-```typescript
-// 独立模式: 使用本地 Pi
-const result = await nupi.think('分析这个代码问题');
+### Phase 1: 研究 Pi Subagent (进行中)
+- [x] 发现 Pi 已有内置 subagent 机制
+- [ ] 研究 subagent 的 spawn 机制
+- [ ] 理解 Chain 模式的 message 传递
 
-// 外挂模式: 交付给外部 API
-const result = await nupi.thinkExternal({
-  task: '分析这个代码问题',
-  context: { file: 'src/index.ts', error: '...' },
-  timeout: 60000,
-});
-```
-
-### 3. executeWithThinking() - 带思考的执行
-
-```typescript
-// 完整工作流程
-const result = await nupi.executeWithThinking({
-  task: '修复这个 bug',
-  // 自动: think() → execute → save result
-});
-```
-
-### 4. 任务分配接口
-
-```typescript
-// 接收外部任务
-nupi.onExternalTask(async (task) => {
-  const result = await nupi.execute(task);
-  return result;
-});
-
-// 分配给外部
-const externalResult = await nupi.delegateToExternal({
-  task: '需要思考的任务',
-  priority: 8,
-});
-```
-
-## 实现计划
-
-### Phase 1: 接口定义
-- [ ] 定义 WorkMode 类型
-- [ ] 定义 ThinkRequest/ThinkResponse
-- [ ] 定义 ExternalTask 接口
-
-### Phase 2: 独立模式增强
+### Phase 2: 独立模式
 - [ ] 改进本地 Pi Executor
 - [ ] 添加思考缓存
 
-### Phase 3: 外挂模式实现
-- [ ] 实现 thinkExternal()
-- [ ] 实现 delegateToExternal()
-- [ ] 实现 onExternalTask hook
+### Phase 3: 外挂模式 (基于 Pi Subagent)
+- [ ] 集成 Pi subagent 扩展
+- [ ] 配置外部子代理 (Piano/OpenCode)
+- [ ] 实现 delegation 工具
 
-### Phase 4: 集成 Piano
-- [ ] Piano 调用 NuPI think API
-- [ ] NuPI 接收 Piano 返回
+### Phase 4: 测试
+- [ ] 单代理测试
+- [ ] 并行测试
+- [ ] Chain 测试
 
 ## 使用示例
 
