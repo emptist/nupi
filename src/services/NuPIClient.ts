@@ -1,6 +1,6 @@
 import { logger } from 'nezha';
 
-const DEFAULT_BASE_URL = 'http://127.0.0.1:4099';
+const DEFAULT_BASE_URL = 'http://127.0.0.1:5999';
 const REQUEST_TIMEOUT_MS = 10000;
 
 export interface TaskData {

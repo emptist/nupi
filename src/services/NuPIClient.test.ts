@@ -14,7 +14,7 @@ describe('NuPIClient', () => {
     vi.clearAllMocks();
     fetchMock = vi.fn();
     globalThis.fetch = fetchMock;
-    client = new NuPIClient('http://127.0.0.1:4099');
+    client = new NuPIClient('http://127.0.0.1:5999');
   });
 
   describe('health', () => {
@@ -28,7 +28,7 @@ describe('NuPIClient', () => {
       const result = await client.health();
       expect(result.status).toBe('ok');
       expect(fetchMock).toHaveBeenCalledWith(
-        'http://127.0.0.1:4099/health',
+        'http://127.0.0.1:5999/health',
         expect.objectContaining({ method: 'GET' })
       );
     });

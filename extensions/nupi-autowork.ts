@@ -25,7 +25,7 @@ interface WorkItem {
 
 async function isNezhaApiRunning(): Promise<boolean> {
   try {
-    const res = await fetch("http://127.0.0.1:4099/health", {
+    const res = await fetch(`http://${NEZHA_API_HOST}:${NEZHA_API_PORT}/health`, {
       signal: AbortSignal.timeout(2000),
     });
     return res.ok;
@@ -37,7 +37,7 @@ async function isNezhaApiRunning(): Promise<boolean> {
 async function fetchWorkFromNezha(): Promise<WorkItem | null> {
   try {
     const res = await fetch(
-      "http://127.0.0.1:4099/tasks?status=PENDING&limit=1",
+      `http://${NEZHA_API_HOST}:${NEZHA_API_PORT}/tasks?status=PENDING&limit=1`,
       {
         signal: AbortSignal.timeout(5000),
       },
@@ -49,7 +49,7 @@ async function fetchWorkFromNezha(): Promise<WorkItem | null> {
       }
     }
 
-    const issueRes = await fetch("http://127.0.0.1:4099/issues?limit=3", {
+    const issueRes = await fetch(`http://${NEZHA_API_HOST}:${NEZHA_API_PORT}/issues?limit=3`, {
       signal: AbortSignal.timeout(5000),
     });
     if (issueRes.ok) {
@@ -64,7 +64,7 @@ async function fetchWorkFromNezha(): Promise<WorkItem | null> {
       }
     }
 
-    const broadcastRes = await fetch("http://127.0.0.1:4099/broadcast/5", {
+    const broadcastRes = await fetch(`http://${NEZHA_API_HOST}:${NEZHA_API_PORT}/broadcast/5`, {
       signal: AbortSignal.timeout(5000),
     });
     if (broadcastRes.ok) {
