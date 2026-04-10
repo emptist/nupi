@@ -339,6 +339,23 @@ export default function nezhaAutoWork(pi: ExtensionAPI): void {
     },
   });
 
+  pi.registerCommand("nupi-model", {
+    description: "Switch Pi model",
+    handler: async (model: string, ctx: any) => {
+      if (!model.trim()) {
+        const current = pi.getThinkingLevel();
+        ctx.ui.notify(`Current thinking: ${current}`, "info");
+        return;
+      }
+      const level = pi.setThinkingLevel(model as any);
+      if (level) {
+        ctx.ui.notify(`Thinking level set to: ${model}`, "success");
+      } else {
+        ctx.ui.notify(`Failed to set thinking: ${model}`, "error");
+      }
+    },
+  });
+
   pi.registerCommand("nupi-prompt", {
     description: "Re-prompt autonomous work mode",
     handler: async (args: string, ctx: any) => {
