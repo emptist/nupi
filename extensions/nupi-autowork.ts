@@ -339,5 +339,18 @@ export default function nezhaAutoWork(pi: ExtensionAPI): void {
     },
   });
 
-  console.log("[NuPI v2.1] Auto-work loaded with agent-loop integration.");
+  pi.registerCommand("nupi-prompt", {
+    description: "Re-prompt autonomous work mode",
+    handler: async (args: string, ctx: any) => {
+      const confirmed = await ctx.ui.confirm("NuPI", "Reset and restart autonomous mode?");
+      if (confirmed) {
+        pi.sendUserMessage(AUTO_WORK_PROMPT, { deliverAs: "steer" });
+        ctx.ui.notify("Autonomous mode restarted", "success");
+      } else {
+        ctx.ui.notify("Cancelled", "info");
+      }
+    },
+  });
+
+  console.log("[NuPI v2.1] Auto-work loaded with ctx.ui integration.");
 }
