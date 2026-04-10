@@ -106,7 +106,10 @@ export class ExternalDelegate {
 
       if (executing.length >= MAX_CONCURRENT || tasks.indexOf(t) === tasks.length - 1) {
         const batchResults = await Promise.all(executing);
-        results.push(...batchResults.map((r) => r.results? [0]).flat().filter(Boolean) as SingleResult[]);
+        const flatResults = batchResults
+          .flatMap((r) => r.results || [])
+          .filter((r): r is SingleResult => !!r);
+        results.push(...flatResults);
         executing.length = 0;
       }
     }
