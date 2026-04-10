@@ -2,12 +2,12 @@
  * NuPI Tools Extension for Pi
  *
  * Provides access to NuPI (Nezha united with PI) via HTTP API.
- * Uses fetch() to call port 4099 - no external dependencies.
+ * Uses fetch() to call port 5999 - no external dependencies.
  */
 
 import type { ExtensionAPI } from '@mariozechner/pi-coding-agent';
 
-const API_BASE = 'http://127.0.0.1:4099';
+const API_BASE = 'http://127.0.0.1:5999';
 const TIMEOUT = 5000;
 
 async function apiRequest<T>(path: string, method: string = 'GET', body?: unknown): Promise<T> {

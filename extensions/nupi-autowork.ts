@@ -11,7 +11,7 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { execSync } from "child_process";
 
-const NEZHA_API_PORT = 4099;
+const NEZHA_API_PORT = 5999;
 const NEZHA_API_HOST = "localhost";
 
 interface WorkItem {
