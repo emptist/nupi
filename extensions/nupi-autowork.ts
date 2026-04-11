@@ -382,6 +382,41 @@ export default function nezhaAutoWork(pi: ExtensionAPI): void {
     },
   });
 
+  pi.registerCommand("nupi-mode", {
+    description: "Show/switch NuPI mode (standalone|external)",
+    handler: async (args: string, ctx: any) => {
+      const opencodeRunning = await isNezhaApiRunning();
+      const mode = opencodeRunning ? 'external' : 'standalone';
+      
+      if (!args.trim()) {
+        // Show current mode
+        const msg = opencodeRunning 
+          ? `🔗 External Mode: OpenCode available for thinking`
+          : `💻 Standalone Mode: using local Pi (limited capacity)`;
+        ctx.ui.notify(msg, "info");
+        ctx.ui.notify(`Use /nupi-mode external|standalone to switch`, "info");
+        return;
+      }
+      
+      // Mode switching - give feedback
+      const newMode = args.trim().toLowerCase();
+      if (newMode === 'external' && !opencodeRunning) {
+        ctx.ui.notify(`⚠️ External mode not available - OpenCode not running`, "error");
+        ctx.ui.notify(`Start OpenCode first, then try again`, "info");
+        return;
+      }
+      
+      const feedback = `🔄 Mode: ${mode} → ${newMode}`;
+      ctx.ui.notify(feedback, "success");
+      
+      if (newMode === 'external') {
+        ctx.ui.notify(`✅ Now using OpenCode for thinking`, "success");
+      } else {
+        ctx.ui.notify(`💻 Now using local Pi model`, "info");
+      }
+    },
+  });
+
   pi.registerCommand("nupi-model", {
     description: "Switch Pi model",
     handler: async (model: string, ctx: any) => {
