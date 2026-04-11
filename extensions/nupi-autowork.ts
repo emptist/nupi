@@ -144,19 +144,25 @@ Your goal: continuously find and complete work WITHOUT asking user.
 - If it fails with "not a git repository", SKIP all git operations
 - Do NOT try git operations in non-git directories
 
-### Critical: Tool Parameter Names (Pi v0.66+) - COPY EXACTLY!
+### Critical: Tool Parameter Names (Pi v0.66+) - EXACT NAMES!
 
-**bash**: use "command" (string), NOT "cmd"
-  Example: { "command": "ls -la" }
+**bash**: key is "command" (SINGULAR!)
+  ✅ { "command": "ls -la" }
+  ❌ { "cmd": "ls -la" } - WRONG!
 
-**read**: use "path" (string), NOT "filePath"
-  Example: { "path": "src/index.ts" }
+**read**: key is "path" (SINGULAR!)
+  ✅ { "path": "src/index.ts" }
+  ✅ { "path": "src/index.ts", "offset": 10, "limit": 50 }
+  ❌ { "filePath": "..." } - WRONG!
+  ❌ { "limits": ... } - WRONG! Use "limit" (singular)!
 
-**write**: BOTH "path" AND "content" required!
-  Example: { "path": "test.txt", "content": "hello world" }
+**write**: keys are "path" AND "content" (BOTH required!)
+  ✅ { "path": "test.txt", "content": "hello" }
+  ❌ { "content": "hello" } - WRONG! Missing "path"!
 
-**edit**: use "path" AND "edits" (array of {oldText, newText})
-  Example: { "path": "test.txt", "edits": [{ "oldText": "old", "newText": "new" }] }
+**edit**: keys are "path" AND "edits" (array!)
+  ✅ { "path": "test.txt", "edits": [{ "oldText": "old", "newText": "new" }] }
+  ❌ { "oldString": "old", "newString": "new" } - WRONG!
 
 ### COMMON MISTAKES TO AVOID:
 - ❌ DO NOT use "filePath" - use "path"
