@@ -236,13 +236,13 @@ export default function nezhaAutoWork(pi: ExtensionAPI): void {
 
     await ensureNezhaApiRunning();
 
-    // Feedback: show current mode and model
+    // Feedback: show current mode
+    // NuPI can work standalone with its own model (glm-4.5-flash), or delegate to OpenCode via Piano
     const opencodeRunning = await isNezhaApiRunning();
-    const mode = opencodeRunning ? '🔗 External Mode (OpenCode for thinking)' : '💻 Standalone Mode (local Pi)';
-    const modelInfo = 'Current model: check bottom of Pi UI';
+    const mode = opencodeRunning ? '🔗 External (OpenCode)' : '💻 Standalone (NuPI model)';
     
     pi.sendUserMessage(`📊 NuPI Mode: ${mode}`, { deliverAs: "steer" });
-    pi.sendUserMessage(modelInfo, { deliverAs: "steer" });
+    pi.sendUserMessage("Use /nupi-mode to check/switch mode", { deliverAs: "steer" });
 
     pi.sendUserMessage(AUTO_WORK_PROMPT, { deliverAs: "steer" });
 
