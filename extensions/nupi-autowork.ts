@@ -237,12 +237,12 @@ export default function nezhaAutoWork(pi: ExtensionAPI): void {
     await ensureNezhaApiRunning();
 
     // Feedback: show current mode
-    // NuPI can work standalone with its own model (glm-4.5-flash), or delegate to OpenCode via Piano
+    // NuPI can work standalone with its own strong model, or delegate to OpenCode via Piano
     const opencodeRunning = await isNezhaApiRunning();
-    const mode = opencodeRunning ? '🔗 External (OpenCode)' : '💻 Standalone (NuPI model)';
+    const mode = opencodeRunning ? '🔗 External (OpenCode)' : '💻 Standalone (NuPI own strong model)';
     
     pi.sendUserMessage(`📊 NuPI Mode: ${mode}`, { deliverAs: "steer" });
-    pi.sendUserMessage("Use /nupi-mode to check/switch mode", { deliverAs: "steer" });
+    pi.sendUserMessage("Use /nupi-mode to check/switch", { deliverAs: "steer" });
 
     pi.sendUserMessage(AUTO_WORK_PROMPT, { deliverAs: "steer" });
 
@@ -391,18 +391,16 @@ export default function nezhaAutoWork(pi: ExtensionAPI): void {
       if (!args.trim()) {
         // Show current mode
         const msg = opencodeRunning 
-          ? `🔗 External Mode: OpenCode available for thinking`
-          : `💻 Standalone Mode: using local Pi (limited capacity)`;
+          ? `🔗 External Mode: OpenCode available`
+          : `💻 Standalone Mode: NuPI uses its own strong model (glm-4.5-flash)`;
         ctx.ui.notify(msg, "info");
-        ctx.ui.notify(`Use /nupi-mode external|standalone to switch`, "info");
         return;
       }
       
       // Mode switching - give feedback
       const newMode = args.trim().toLowerCase();
       if (newMode === 'external' && !opencodeRunning) {
-        ctx.ui.notify(`⚠️ External mode not available - OpenCode not running`, "error");
-        ctx.ui.notify(`Start OpenCode first, then try again`, "info");
+        ctx.ui.notify(`⚠️ External mode not available`, "error");
         return;
       }
       
@@ -410,9 +408,9 @@ export default function nezhaAutoWork(pi: ExtensionAPI): void {
       ctx.ui.notify(feedback, "success");
       
       if (newMode === 'external') {
-        ctx.ui.notify(`✅ Now using OpenCode for thinking`, "success");
+        ctx.ui.notify(`✅ Delegating to OpenCode for strong thinking`, "success");
       } else {
-        ctx.ui.notify(`💻 Now using local Pi model`, "info");
+        ctx.ui.notify(`💻 Using NuPI's own strong model`, "success");
       }
     },
   });
