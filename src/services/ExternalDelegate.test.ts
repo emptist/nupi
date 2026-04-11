@@ -4,7 +4,8 @@ import type { DelegateOptions } from '../types/external.js';
 
 describe('ExternalDelegate', () => {
   let delegate: ExternalDelegate;
-  let fetchMock: ReturnType<typeof vi.fn>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let fetchMock: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -27,7 +28,7 @@ describe('ExternalDelegate', () => {
     });
 
     it('should use default values when not provided', () => {
-      const defaultDelegate = createExternalDelegate();
+      const defaultDelegate = createExternalDelegate({});
       expect(defaultDelegate).toBeDefined();
     });
   });
@@ -200,9 +201,9 @@ describe('ExternalDelegate', () => {
 });
 
 describe('createExternalDelegate', () => {
-  it('should return singleton instance', () => {
-    const d1 = createExternalDelegate();
-    const d2 = createExternalDelegate();
+  it('should return new instance each time', () => {
+    const d1 = createExternalDelegate({});
+    const d2 = createExternalDelegate({});
     expect(d1).not.toBe(d2);
   });
 });
