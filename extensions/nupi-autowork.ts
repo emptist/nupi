@@ -146,25 +146,17 @@ Your goal: continuously find and complete work WITHOUT asking user.
 
 ### Critical: Tool Parameter Names (Pi v0.66+) - COPY EXACTLY!
 
-**bash**: JSON with single key "command" (string)
-```json
-{ "command": "ls -la" }
-```
+**bash**: use "command" (string), NOT "cmd"
+  Example: { "command": "ls -la" }
 
-**read**: JSON with "path" (string), optional "offset"/"limit"
-```json
-{ "path": "src/index.ts" }
-```
+**read**: use "path" (string), NOT "filePath"
+  Example: { "path": "src/index.ts" }
 
-**write**: JSON with BOTH "path" AND "content" (both required!)
-```json
-{ "path": "test.txt", "content": "hello world" }
-```
+**write**: BOTH "path" AND "content" required!
+  Example: { "path": "test.txt", "content": "hello world" }
 
-**edit**: JSON with "path" AND "edits" (array of {oldText, newText})
-```json
-{ "path": "test.txt", "edits": [{ "oldText": "old", "newText": "new" }] }
-```
+**edit**: use "path" AND "edits" (array of {oldText, newText})
+  Example: { "path": "test.txt", "edits": [{ "oldText": "old", "newText": "new" }] }
 
 ### COMMON MISTAKES TO AVOID:
 - ❌ DO NOT use "filePath" - use "path"
