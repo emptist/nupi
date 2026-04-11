@@ -236,6 +236,14 @@ export default function nezhaAutoWork(pi: ExtensionAPI): void {
 
     await ensureNezhaApiRunning();
 
+    // Feedback: show current mode and model
+    const opencodeRunning = await isNezhaApiRunning();
+    const mode = opencodeRunning ? '🔗 External Mode (OpenCode for thinking)' : '💻 Standalone Mode (local Pi)';
+    const modelInfo = 'Current model: check bottom of Pi UI';
+    
+    pi.sendUserMessage(`📊 NuPI Mode: ${mode}`, { deliverAs: "steer" });
+    pi.sendUserMessage(modelInfo, { deliverAs: "steer" });
+
     pi.sendUserMessage(AUTO_WORK_PROMPT, { deliverAs: "steer" });
 
     setTimeout(() => {
