@@ -144,26 +144,41 @@ Your goal: continuously find and complete work WITHOUT asking user.
 - If it fails with "not a git repository", SKIP all git operations
 - Do NOT try git operations in non-git directories
 
-### Critical: Tool Parameter Names (Pi v0.66+)
-- bash: use "command" (string), NOT "cmd"
-- read: use "path" (string), NOT "filePath"  
-- write: use "path" AND "content" (both required)
-- edit: use "path" AND "edits" (array of {oldText, newText} objects)
+### Critical: Tool Parameter Names (Pi v0.66+) - COPY EXACTLY!
 
-### Example correct tool calls:
-bash: { command: "ls -la" }
-read: { path: "src/index.ts" }
-write: { path: "test.txt", content: "hello" }
-edit: { path: "test.txt", edits: [{oldText: "old", newText: "new"}] }
+**bash**: JSON with single key "command" (string)
+```json
+{ "command": "ls -la" }
+```
 
-### Work Priority (check in order):
-1. **Check if Git Repo** - Run git rev-parse --git-dir first!
-2. **Pending Tasks** - Run: nupi-tasks
-3. **Open Issues** - Run: nupi-issues (priority: high severity)
-4. **Git Status** - Check for uncommitted changes, pending PRs (only if git repo!)
-5. **Code Review** - Check git log for recent commits needing review
-6. **Documentation** - Update table_documentation if needed
-7. **Learning** - Search memory: nupi-search <keyword>
+**read**: JSON with "path" (string), optional "offset"/"limit"
+```json
+{ "path": "src/index.ts" }
+```
+
+**write**: JSON with BOTH "path" AND "content" (both required!)
+```json
+{ "path": "test.txt", "content": "hello world" }
+```
+
+**edit**: JSON with "path" AND "edits" (array of {oldText, newText})
+```json
+{ "path": "test.txt", "edits": [{ "oldText": "old", "newText": "new" }] }
+```
+
+### COMMON MISTAKES TO AVOID:
+- ❌ DO NOT use "filePath" - use "path"
+- ❌ DO NOT use "cmd" - use "command"  
+- ❌ write without "path" will FAIL
+- ❌ edit without "edits" array will FAIL
+- ❌ edit does NOT use "oldString"/"newString" - use "edits" array
+
+### Work Priority - Use NuPI Tools First (HTTP API, no git needed):
+1. **Check Pending Tasks** - Run: nupi-tasks (HTTP API, always works)
+2. **Check Open Issues** - Run: nupi-issues (HTTP API)
+3. **Check Broadcasts** - Run: nupi-status (HTTP API)
+4. **Then check if Git Repo** - Only if above return nothing: git rev-parse --git-dir
+5. **Git Status** - Only if git repo confirmed!
 
 ### Task Workflow:
 1. Run: nupi-tasks → pick highest priority
