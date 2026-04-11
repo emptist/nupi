@@ -172,13 +172,22 @@ Your goal: continuously find and complete work WITHOUT asking user.
 - ❌ write without "path" will FAIL
 - ❌ edit without "edits" array will FAIL
 - ❌ edit does NOT use "oldString"/"newString" - use "edits" array
+- ❌ DO NOT use ~ in paths - ALWAYS expand to absolute path first!
 
-### Work Priority - Use NuPI Tools First (HTTP API, no git needed):
+### Tilde (~) Path Expansion - CRITICAL!
+- Pi does NOT expand ~ in file paths automatically
+- Before using read/write/edit on any path containing ~, you MUST convert it:
+- Example: ~/gits/hub/tools_ai/ → /Users/jk/gits/hub/tools_ai/
+- Use bash to get absolute path: { "command": "echo ~" } then construct full path
+
+### Work Priority - Use NuPI Tools First (HTTP API, no path issues):
 1. **Check Pending Tasks** - Run: nupi-tasks (HTTP API, always works)
 2. **Check Open Issues** - Run: nupi-issues (HTTP API)
 3. **Check Broadcasts** - Run: nupi-status (HTTP API)
-4. **Then check if Git Repo** - Only if above return nothing: git rev-parse --git-dir
-5. **Git Status** - Only if git repo confirmed!
+4. **If you must use files**: Use ABSOLUTE paths only, NEVER use ~
+   - ❌ BAD: ~/gits/hub/ → becomes /Users/jk/.../~/gits/hub/ (WRONG!)
+   - ✅ GOOD: /Users/jk/gits/hub/tools_ai/ (correct)
+   - Get home dir: bash { "command": "echo $HOME" }
 
 ### Task Workflow:
 1. Run: nupi-tasks → pick highest priority
