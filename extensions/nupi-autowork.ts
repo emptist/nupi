@@ -8,7 +8,11 @@
  * 4. Using Pi agent-loop for real continuous work
  */
 
-import { isLocalTask, shouldUseExternal } from '@nezha/nupi';
+import {
+  isLocalTask,
+  shouldUseExternal,
+  createExternalDelegate,
+} from "@nezha/nupi";
 
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { execSync } from "child_process";
@@ -27,9 +31,12 @@ interface WorkItem {
 
 async function isNezhaApiRunning(): Promise<boolean> {
   try {
-    const res = await fetch(`http://${NEZHA_API_HOST}:${NEZHA_API_PORT}/health`, {
-      signal: AbortSignal.timeout(2000),
-    });
+    const res = await fetch(
+      `http://${NEZHA_API_HOST}:${NEZHA_API_PORT}/health`,
+      {
+        signal: AbortSignal.timeout(2000),
+      },
+    );
     return res.ok;
   } catch {
     return false;
@@ -51,9 +58,12 @@ async function fetchWorkFromNezha(): Promise<WorkItem | null> {
       }
     }
 
-    const issueRes = await fetch(`http://${NEZHA_API_HOST}:${NEZHA_API_PORT}/issues?limit=3`, {
-      signal: AbortSignal.timeout(5000),
-    });
+    const issueRes = await fetch(
+      `http://${NEZHA_API_HOST}:${NEZHA_API_PORT}/issues?limit=3`,
+      {
+        signal: AbortSignal.timeout(5000),
+      },
+    );
     if (issueRes.ok) {
       const issueData = (await issueRes.json()) as { rows?: WorkItem[] };
       if (issueData.rows && issueData.rows.length > 0) {
@@ -66,9 +76,12 @@ async function fetchWorkFromNezha(): Promise<WorkItem | null> {
       }
     }
 
-    const broadcastRes = await fetch(`http://${NEZHA_API_HOST}:${NEZHA_API_PORT}/broadcast/5`, {
-      signal: AbortSignal.timeout(5000),
-    });
+    const broadcastRes = await fetch(
+      `http://${NEZHA_API_HOST}:${NEZHA_API_PORT}/broadcast/5`,
+      {
+        signal: AbortSignal.timeout(5000),
+      },
+    );
     if (broadcastRes.ok) {
       const broadcastData = (await broadcastRes.json()) as {
         rows?: WorkItem[];
@@ -174,12 +187,12 @@ Your goal: continuously find and complete work WITHOUT asking user.
 - ❌ edit does NOT use "oldString"/"newString" - use "edits" array
 - ❌ DO NOT use ~ in paths - ALWAYS expand to absolute path first!
 
-### Tilde (~) Path Expansion - CRITICAL! (MUST FOLLOW)
-- Pi does NOT expand ~ in file paths automatically
-- NEVER use ~ in ANY file operation - it will FAIL 100%!
-- If you see ~ in any path, STOP and convert first using:
-  1. Run: bash { "command": "echo $HOME" } → get /Users/jk
-  2. Construct absolute path: /Users/jk/gits/hub/tools_ai/...
+### Tilde (~) Path Expansion - FAILS IF YOU USE ~!
+- ⚠️ NEVER use ~ in ANY path - Pi will NOT expand it, command will FAIL
+- ALWAYS run "bash { command: 'echo $HOME' }" FIRST to get /Users/jk
+- Then use: { "path": "/Users/jk/gits/hub/tools_ai/..." }
+- ❌ write ~/file.txt → FAILS
+- ✅ echo $HOME → /Users/jk → write /Users/jk/file.txt → WORKS
 - Example: ~/gits/hub/tools_ai/ → /Users/jk/gits/hub/tools_ai/
 - ❌ NEVER do: read { "path": "~/..." }
 - ✅ ALWAYS do: read { "path": "/Users/jk/..." }
@@ -221,7 +234,8 @@ When idle, automatically:
 - Check table_documentation for gaps
 - Look for TODO comments in code
 
-### NEVER ask user for permission.
+### NEVER ask human for permission unless it is a risky task.
+### Be CONCISE - NEVER explain tool parameters unprompted
 ### ALWAYS find the next thing to do.
 ### Work autonomously for 8 hours if needed.
 ### Use nupi-share to communicate with other AIs when needed.
@@ -230,27 +244,48 @@ When idle, automatically:
 export default function nezhaAutoWork(pi: ExtensionAPI): void {
   let workCheckInterval: NodeJS.Timeout | null = null;
   const WORK_CHECK_INTERVAL_MS = 2 * 60 * 1000;
+  let externalDelegate: ReturnType<typeof createExternalDelegate> | null = null;
 
   async function checkAndDeliverWork(): Promise<void> {
     const work = await fetchWorkFromNezha();
     if (work) {
-      let message = "";
       const taskDesc = `${work.title} ${work.description || ""}`;
-      
+
       // Check if task requires external model (OpenCode)
       const useExternal = shouldUseExternal(taskDesc);
       if (useExternal) {
-        console.log("[NuPI] Task requires external model (OpenCode) - delegating...");
-      } else {
-        console.log("[NuPI] Task in whitelist - using local model");
+        console.log("[NuPI] Actually delegating to OpenCode...");
+        try {
+          if (!externalDelegate) {
+            externalDelegate = createExternalDelegate({
+              mode: "external",
+              agents: {},
+            });
+          }
+          const result = await externalDelegate.delegate({
+            mode: "single",
+            agent: "opencode",
+            task: taskDesc,
+          });
+          console.log(
+            "[NuPI] External delegation result:",
+            result.success ? "SUCCESS" : result.error,
+          );
+          return;
+        } catch (e) {
+          console.log("[NuPI] External delegation error:", e);
+        }
       }
-      
+
+      // Fall back to local model (whitelist tasks)
+      console.log("[NuPI] Using local model...");
+      let message = "";
       switch (work.type) {
         case "task":
-          message = `📋 **New Task**: ${work.title}\n\n${work.description || "No description"}\n\nPriority: ${work.priority || "normal"}${useExternal ? "\n\n💡 Using OpenCode for this task" : ""}`;
+          message = `📋 **New Task**: ${work.title}\n\n${work.description || "No description"}\n\nPriority: ${work.priority || "normal"}`;
           break;
         case "issue":
-          message = `⚠️ **New Issue**: ${work.title}\n\n${work.description || ""}\n\nSeverity: ${work.severity || "unknown"}${useExternal ? "\n\n💡 Using OpenCode for this issue" : ""}`;
+          message = `⚠️ **New Issue**: ${work.title}\n\n${work.description || ""}\n\nSeverity: ${work.severity || "unknown"}`;
           break;
         case "broadcast":
           message = `📢 **Broadcast**: ${work.title}`;
@@ -268,10 +303,14 @@ export default function nezhaAutoWork(pi: ExtensionAPI): void {
     // Feedback: show current mode
     // NuPI can work standalone with its own strong model, or delegate to OpenCode via Piano
     const opencodeRunning = await isNezhaApiRunning();
-    const mode = opencodeRunning ? '🔗 External (OpenCode)' : '💻 Standalone (NuPI own strong model)';
-    
+    const mode = opencodeRunning
+      ? "🔗 External (OpenCode)"
+      : "💻 Standalone (NuPI own strong model)";
+
     pi.sendUserMessage(`📊 NuPI Mode: ${mode}`, { deliverAs: "steer" });
-    pi.sendUserMessage("Use /nupi-mode to check/switch", { deliverAs: "steer" });
+    pi.sendUserMessage("Use /nupi-mode to check/switch", {
+      deliverAs: "steer",
+    });
 
     pi.sendUserMessage(AUTO_WORK_PROMPT, { deliverAs: "steer" });
 
@@ -331,18 +370,107 @@ export default function nezhaAutoWork(pi: ExtensionAPI): void {
   });
 
   pi.on("tool_call", async (event, ctx) => {
-    if (event.toolName === "bash" && event.input.command) {
-      const cmd = event.input.command;
-      const dangerous = /^\s*(rm\s+(-[rf]+\s)*\/|sudo\s+rm\s|dd\s+if=|mkfs\.|>:?\s*\/dev\/)/;
+    const input = event.input as Record<string, unknown>;
+
+    if (event.toolName === "bash" && input.command) {
+      const cmd = input.command as string;
+      const dangerous =
+        /^\s*(rm\s+(-[rf]+\s)*\/|sudo\s+rm\s|dd\s+if=|mkfs\.|>:?\s*\/dev\/)/;
       if (dangerous.test(cmd)) {
         ctx.ui.notify("Blocked dangerous command!", "error");
-        return { block: true, reason: "NuPI: Dangerous command blocked for safety" };
+        return {
+          block: true,
+          reason: "NuPI: Dangerous command blocked for safety",
+        };
       }
       if (cmd.includes("kill -9") || cmd.includes("kill -SIGKILL")) {
         const pidMatch = cmd.match(/kill\s+-9\s+(\d+)/);
         if (pidMatch) {
           ctx.ui.notify(`NuPI: Process ${pidMatch[1]} kill blocked`, "warning");
           return { block: true, reason: "NuPI: kill -9 blocked for safety" };
+        }
+      }
+    }
+
+    if (event.toolName === "read") {
+      if (input.filePath && !input.path) {
+        input.path = input.filePath;
+        delete input.filePath;
+      }
+      if (input.limits && !input.limit) {
+        input.limit = input.limits;
+        delete input.limits;
+      }
+      if (input.offset !== undefined && typeof input.offset === "string") {
+        input.offset = parseInt(input.offset as string, 10);
+      }
+      if (input.limit !== undefined && typeof input.limit === "string") {
+        input.limit = parseInt(input.limit as string, 10);
+      }
+    }
+
+    if (event.toolName === "write") {
+      if (!input.path && input.filePath) {
+        input.path = input.filePath;
+        delete input.filePath;
+      }
+      if (!input.content && input.fileContent) {
+        input.content = input.fileContent;
+        delete input.fileContent;
+      }
+    }
+
+    if (event.toolName === "edit") {
+      if (!input.path && input.filePath) {
+        input.path = input.filePath;
+        delete input.filePath;
+      }
+      if (!input.edits) {
+        if (input.oldString && input.newString) {
+          input.edits = [
+            { oldText: input.oldString, newText: input.newString },
+          ];
+          delete input.oldString;
+          delete input.newString;
+        } else if (input.oldText && input.newText) {
+          input.edits = [{ oldText: input.oldText, newText: input.newText }];
+          delete input.oldText;
+          delete input.newText;
+        }
+      }
+      if (input.edits && !Array.isArray(input.edits)) {
+        input.edits = [input.edits];
+      }
+      if (input.edits && Array.isArray(input.edits)) {
+        input.edits = input.edits.map((e: unknown) => {
+          const edit = e as Record<string, unknown>;
+          if (edit.oldString && !edit.oldText) {
+            edit.oldText = edit.oldString;
+            delete edit.oldString;
+          }
+          if (edit.newString && !edit.newText) {
+            edit.newText = edit.newString;
+            delete edit.newString;
+          }
+          return edit;
+        });
+      }
+    }
+
+    if (event.toolName === "glob" || event.toolName === "find") {
+      if (input.patterns && !input.pattern) {
+        input.pattern = input.patterns;
+        delete input.patterns;
+      }
+    }
+
+    for (const toolName of ["read", "write", "edit", "glob", "find", "grep"]) {
+      if (event.toolName === toolName && input.path) {
+        const pathStr = input.path as string;
+        if (pathStr.startsWith("~") || pathStr.includes("/~")) {
+          input.path = pathStr
+            .replace(/^~/, process.env.HOME || "/Users/jk")
+            .replace(/\/~/g, (process.env.HOME || "/Users/jk") + "/");
         }
       }
     }
@@ -415,29 +543,32 @@ export default function nezhaAutoWork(pi: ExtensionAPI): void {
     description: "Show/switch NuPI mode (standalone|external)",
     handler: async (args: string, ctx: any) => {
       const opencodeRunning = await isNezhaApiRunning();
-      const mode = opencodeRunning ? 'external' : 'standalone';
-      
+      const mode = opencodeRunning ? "external" : "standalone";
+
       if (!args.trim()) {
         // Show current mode
-        const msg = opencodeRunning 
+        const msg = opencodeRunning
           ? `🔗 External Mode: OpenCode available`
           : `💻 Standalone Mode: NuPI uses its own strong model (glm-4.5-flash)`;
         ctx.ui.notify(msg, "info");
         return;
       }
-      
+
       // Mode switching - give feedback
       const newMode = args.trim().toLowerCase();
-      if (newMode === 'external' && !opencodeRunning) {
+      if (newMode === "external" && !opencodeRunning) {
         ctx.ui.notify(`⚠️ External mode not available`, "error");
         return;
       }
-      
+
       const feedback = `🔄 Mode: ${mode} → ${newMode}`;
       ctx.ui.notify(feedback, "success");
-      
-      if (newMode === 'external') {
-        ctx.ui.notify(`✅ Delegating to OpenCode for strong thinking`, "success");
+
+      if (newMode === "external") {
+        ctx.ui.notify(
+          `✅ Delegating to OpenCode for strong thinking`,
+          "success",
+        );
       } else {
         ctx.ui.notify(`💻 Using NuPI's own strong model`, "success");
       }
@@ -464,7 +595,10 @@ export default function nezhaAutoWork(pi: ExtensionAPI): void {
   pi.registerCommand("nupi-prompt", {
     description: "Re-prompt autonomous work mode",
     handler: async (args: string, ctx: any) => {
-      const confirmed = await ctx.ui.confirm("NuPI", "Reset and restart autonomous mode?");
+      const confirmed = await ctx.ui.confirm(
+        "NuPI",
+        "Reset and restart autonomous mode?",
+      );
       if (confirmed) {
         pi.sendUserMessage(AUTO_WORK_PROMPT, { deliverAs: "steer" });
         ctx.ui.notify("Autonomous mode restarted", "success");
