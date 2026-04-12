@@ -12,7 +12,7 @@ import {
   isLocalTask,
   shouldUseExternal,
   createExternalDelegate,
-} from "@nezha/nupi";
+} from "/Users/jk/gits/hub/tools_ai/nupi/dist/index.js";
 
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { execSync } from "child_process";
@@ -259,6 +259,7 @@ export default function nezhaAutoWork(pi: ExtensionAPI): void {
           if (!externalDelegate) {
             externalDelegate = createExternalDelegate({
               mode: "external",
+              timeout: 300000, // 5 min
               agents: {
                 opencode: {
                   name: "opencode",
