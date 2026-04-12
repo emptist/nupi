@@ -126,7 +126,7 @@ export class ExternalDelegate {
       ? session.id
       : `ses_${session.id}`;
 
-    // Step 2: Send the task to the session
+    // Step 2: Send the task to the session (streaming response)
     const taskPayload = {
       parts: [{ type: "text", text: task }],
     };
@@ -147,7 +147,12 @@ export class ExternalDelegate {
       };
     }
 
-    const result = (await taskResponse.json()) as SingleResult;
+    // Handle streaming response - collect chunks until stream ends
+    const result = await this.readStreamingResponse(taskResponse);
+    if (!result) {
+      return { success: false, error: "Failed to read streaming response" };
+    }
+
     // Handle both exitCode and finish status
     const info = result as unknown as { info?: { finish?: string } };
     const success = result.exitCode === 0 || info?.info?.finish === "stop";
@@ -156,6 +161,44 @@ export class ExternalDelegate {
       results: [result],
       output: this.extractOutput(result),
     };
+  }
+
+  private async readStreamingResponse(
+    response: Response,
+  ): Promise<SingleResult | null> {
+    if (!response.body) return null;
+
+    const reader = response.body.getReader();
+    const chunks: Uint8Array[] = [];
+    const decoder = new TextDecoder();
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+      }
+    } catch (e) {
+      console.error("[ExternalDelegate] Stream read error:", e);
+      return null;
+    }
+
+    const concatenated = new Uint8Array(
+      chunks.reduce((acc, chunk) => acc + chunk.length, 0),
+    );
+    let offset = 0;
+    for (const chunk of chunks) {
+      concatenated.set(chunk, offset);
+      offset += chunk.length;
+    }
+
+    const text = decoder.decode(concatenated);
+    try {
+      return JSON.parse(text) as SingleResult;
+    } catch {
+      console.error("[ExternalDelegate] Failed to parse streaming response:", text.substring(0, 500));
+      return null;
+    }
   }
 
   private async parallelDelegate(
