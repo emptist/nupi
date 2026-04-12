@@ -6,7 +6,7 @@ import type {
   SingleResult,
   TokenUsage,
   NuPIConfig,
-} from '../types/external.js';
+} from "../types/external.js";
 
 export class ExternalDelegate {
   private agents: AgentRegistry;
@@ -16,8 +16,8 @@ export class ExternalDelegate {
 
   constructor(config: NuPIConfig = {}) {
     this.agents = config.agents || {};
-    this.defaultModel = config.defaultModel || 'glm-4.5-flash';
-    this.timeout = config.timeout || 120000;
+    this.defaultModel = config.defaultModel || "glm-4.5-flash";
+    this.timeout = config.timeout || 300000; // 5 min default
     this.autoFallback = config.autoFallback ?? true;
   }
 
@@ -38,81 +38,128 @@ export class ExternalDelegate {
   }
 
   async delegate(options: DelegateOptions): Promise<DelegateResult> {
-    const { mode = 'single', agent, task, tasks, chain } = options;
+    const { mode = "single", agent, task, tasks, chain } = options;
 
     try {
       switch (mode) {
-        case 'single':
+        case "single":
           return await this.singleDelegate(agent!, task!);
-        case 'parallel':
+        case "parallel":
           return await this.parallelDelegate(tasks!);
-        case 'chain':
+        case "chain":
           return await this.chainDelegate(chain!);
         default:
           return { success: false, error: `Unknown mode: ${mode}` };
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      if (this.autoFallback && mode === 'single') {
-        return { success: false, error: `External failed: ${errorMessage}. Use standalone mode.` };
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      if (this.autoFallback && mode === "single") {
+        return {
+          success: false,
+          error: `External failed: ${errorMessage}. Use standalone mode.`,
+        };
       }
       return { success: false, error: errorMessage };
     }
   }
 
-  private async singleDelegate(agentName: string, task: string): Promise<DelegateResult> {
+  private async singleDelegate(
+    agentName: string,
+    task: string,
+  ): Promise<DelegateResult> {
     const agent = this.getAgent(agentName);
     if (!agent) {
       return { success: false, error: `Unknown agent: ${agentName}` };
     }
 
-    try {
-      // Step 1: Create a new session
-      const sessionResponse = await fetch(`${agent.url}/session`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: 'NuPI Delegation' }),
-        signal: AbortSignal.timeout(this.timeout),
-      });
+    const maxRetries = 2;
+    const baseDelay = 10000; // 10s
 
-      if (!sessionResponse.ok) {
-        return { success: false, error: `Session creation failed: HTTP ${sessionResponse.status}` };
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const result = await this.doSingleDelegate(agent, task);
+        return result;
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        const isTimeout =
+          errorMessage.includes("timeout") || errorMessage.includes("aborted");
+
+        if (attempt < maxRetries && isTimeout) {
+          const delay = baseDelay * Math.pow(2, attempt);
+          console.log(
+            `[ExternalDelegate] Timeout, retrying in ${delay / 1000}s (attempt ${attempt + 1}/${maxRetries})...`,
+          );
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          continue;
+        }
+
+        return { success: false, error: `Request failed: ${errorMessage}` };
       }
+    }
 
-      const session = await sessionResponse.json() as { id: string };
-      const sessionId = session.id.startsWith('ses_') ? session.id : `ses_${session.id}`;
+    return { success: false, error: "Max retries exceeded" };
+  }
 
-      // Step 2: Send the task to the session
-      const taskPayload = {
-        parts: [{ type: 'text', text: task }],
+  private async doSingleDelegate(
+    agent: ExternalAgentConfig,
+    task: string,
+  ): Promise<DelegateResult> {
+    // Step 1: Create a new session
+    const sessionResponse = await fetch(`${agent.url}/session`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: "NuPI Delegation" }),
+      signal: AbortSignal.timeout(this.timeout),
+    });
+
+    if (!sessionResponse.ok) {
+      return {
+        success: false,
+        error: `Session creation failed: HTTP ${sessionResponse.status}`,
       };
-      const taskResponse = await fetch(`${agent.url}/session/${sessionId}/message`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+    }
+
+    const session = (await sessionResponse.json()) as { id: string };
+    const sessionId = session.id.startsWith("ses_")
+      ? session.id
+      : `ses_${session.id}`;
+
+    // Step 2: Send the task to the session
+    const taskPayload = {
+      parts: [{ type: "text", text: task }],
+    };
+    const taskResponse = await fetch(
+      `${agent.url}/session/${sessionId}/message`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(taskPayload),
         signal: AbortSignal.timeout(this.timeout),
-      });
+      },
+    );
 
-      if (!taskResponse.ok) {
-        return { success: false, error: `Task failed: HTTP ${taskResponse.status}: ${await taskResponse.text()}` };
-      }
-
-      const result = await taskResponse.json() as SingleResult;
-      // Handle both exitCode and finish status
-      const info = result as unknown as { info?: { finish?: string } };
-      const success = result.exitCode === 0 || info?.info?.finish === 'stop';
+    if (!taskResponse.ok) {
       return {
-        success,
-        results: [result],
-        output: this.extractOutput(result),
+        success: false,
+        error: `Task failed: HTTP ${taskResponse.status}: ${await taskResponse.text()}`,
       };
-    } catch (error) {
-      return { success: false, error: `Request failed: ${error}` };
     }
+
+    const result = (await taskResponse.json()) as SingleResult;
+    // Handle both exitCode and finish status
+    const info = result as unknown as { info?: { finish?: string } };
+    const success = result.exitCode === 0 || info?.info?.finish === "stop";
+    return {
+      success,
+      results: [result],
+      output: this.extractOutput(result),
+    };
   }
 
   private async parallelDelegate(
-    tasks: Array<{ agent: string; task: string; cwd?: string }>
+    tasks: Array<{ agent: string; task: string; cwd?: string }>,
   ): Promise<DelegateResult> {
     const MAX_CONCURRENT = 4;
     const results: SingleResult[] = [];
@@ -122,7 +169,10 @@ export class ExternalDelegate {
       const promise = this.singleDelegate(t.agent, t.task);
       executing.push(promise);
 
-      if (executing.length >= MAX_CONCURRENT || tasks.indexOf(t) === tasks.length - 1) {
+      if (
+        executing.length >= MAX_CONCURRENT ||
+        tasks.indexOf(t) === tasks.length - 1
+      ) {
         const batchResults = await Promise.all(executing);
         const flatResults = batchResults
           .flatMap((r) => r.results || [])
@@ -136,19 +186,22 @@ export class ExternalDelegate {
     return {
       success: allSuccess,
       results,
-      output: results.map((r) => this.extractOutput(r)).join('\n\n---\n\n'),
+      output: results.map((r) => this.extractOutput(r)).join("\n\n---\n\n"),
     };
   }
 
   private async chainDelegate(
-    chain: Array<{ agent: string; task: string; cwd?: string }>
+    chain: Array<{ agent: string; task: string; cwd?: string }>,
   ): Promise<DelegateResult> {
     const results: SingleResult[] = [];
-    let previousOutput = '';
+    let previousOutput = "";
 
     for (let i = 0; i < chain.length; i++) {
       const step = chain[i];
-      const taskWithContext = step.task.replace(/\{previous\}/g, previousOutput);
+      const taskWithContext = step.task.replace(
+        /\{previous\}/g,
+        previousOutput,
+      );
 
       const result = await this.singleDelegate(step.agent, taskWithContext);
       if (!result.success) {
@@ -161,7 +214,7 @@ export class ExternalDelegate {
       }
 
       results.push(...(result.results || []));
-      previousOutput = result.output || '';
+      previousOutput = result.output || "";
     }
 
     return { success: true, results, output: previousOutput };
@@ -169,22 +222,26 @@ export class ExternalDelegate {
 
   private extractOutput(result: SingleResult): string {
     // Try direct parts property
-    const r = result as unknown as { parts?: Array<{ text?: string; type?: string }> };
+    const r = result as unknown as {
+      parts?: Array<{ text?: string; type?: string }>;
+    };
     if (r.parts) {
       const texts = r.parts
         .filter((p): p is { text: string } => !!p.text)
         .map((p) => p.text);
-      if (texts.length > 0) return texts.join('\n');
+      if (texts.length > 0) return texts.join("\n");
     }
     // Fallback to old structure with info.parts
-    const info = result as unknown as { info?: { parts?: Array<{ text?: string; type?: string }> } };
+    const info = result as unknown as {
+      info?: { parts?: Array<{ text?: string; type?: string }> };
+    };
     if (info?.info?.parts) {
       const texts = info.info.parts
         .filter((p): p is { text: string } => !!p.text)
         .map((p) => p.text);
-      if (texts.length > 0) return texts.join('\n');
+      if (texts.length > 0) return texts.join("\n");
     }
-    return result.stderr || '';
+    return result.stderr || "";
   }
 }
 
