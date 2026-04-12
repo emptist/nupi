@@ -36,9 +36,21 @@ export interface NuPIConfig {
   agents?: import('./types/external.js').AgentRegistry;
 }
 
+const DEFAULT_OPENCODE_AGENT = {
+  opencode: {
+    name: 'opencode',
+    url: 'http://127.0.0.1:5111',
+    tools: ['read', 'write', 'edit', 'bash', 'grep', 'glob', 'find'],
+  },
+};
+
 export function createNuPI(config: NuPIConfig) {
-  const externalDelegate = config.mode === 'external' && config.agents
-    ? createExternalDelegate({ mode: config.mode, agents: config.agents })
+  const agents = config.mode === 'external' 
+    ? { ...DEFAULT_OPENCODE_AGENT, ...config.agents }
+    : config.agents;
+    
+  const externalDelegate = config.mode === 'external' && agents
+    ? createExternalDelegate({ mode: config.mode, agents })
     : null;
 
   return {

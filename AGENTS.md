@@ -136,6 +136,35 @@ node ./node_modules/.bin/nezha tot
 gh issue list --repo emptist/nezha
 ```
 
+## 会议系统 - 用于深度讨论 (重要!)
+
+当需要多AI共同分析问题时,使用会议而不是广播:
+
+```bash
+# 创建讨论 (用于深度讨论)
+nezha meeting discuss "标题" "讨论内容"
+
+# 查看活跃讨论
+nezha meeting list
+
+# 查看讨论详情
+nezha meeting show <id>
+
+# 发表观点
+nezha meeting opinion <id> "你的观点"
+
+# 达成共识
+nezha meeting consensus "主题" "立场" "详细说明"
+
+# 查看历史共识
+nezha meeting history
+```
+
+**会议 vs 广播**:
+
+- 会议: 需要讨论、收集意见、达成共识时使用
+- 广播: 简单通知、状态更新时使用
+
 ## areflect - 一键解析 (最重要命令)
 
 ```bash
