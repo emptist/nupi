@@ -85,8 +85,6 @@ export class ExternalDelegate {
       // Step 2: Send the task to the session
       const taskPayload = {
         parts: [{ type: 'text', text: task }],
-        model: { provider: 'openai', name: agent.model || this.defaultModel },
-        tools: agent.tools ? {} : undefined,
       };
       const taskResponse = await fetch(`${agent.url}/session/${sessionId}/message`, {
         method: 'POST',
