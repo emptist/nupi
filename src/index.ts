@@ -15,7 +15,7 @@ export { PiExecutor, type PiTaskResult, type PiConfig } from './services/PiExecu
 export { PiSDKExecutor } from './services/PiSDKExecutor.js';
 export { ExternalDelegate, createExternalDelegate };
 
-export { isLocalTask, shouldUseExternal, LOCAL_TASK_WHITELIST, isSelfModelStrong, getNuPIStatus };
+export { isLocalTask, shouldUseExternal, isRetryableError, LOCAL_TASK_WHITELIST, isSelfModelStrong, getNuPIStatus };
 
 export type {
   WorkMode,
@@ -47,38 +47,33 @@ const DEFAULT_OPENCODE_AGENT = {
 };
 
 const LOCAL_TASK_WHITELIST = [
-  'nupi-tasks',
-  'nupi-issues', 
-  'nupi-status',
-  'nupi-learn',
-  'nupi-search',
-  'nupi-task-take',
-  'nupi-task-done',
-  'git rev-parse',
   'pwd',
-  'ls',
-  'ls -la',
-  'ls -a',
   'echo',
   'whoami',
   'date',
-  'nupi-mode',
-  'nupi-model',
+];
+
+const RETRYABLE_ERRORS = [
+  'must have required property',
+  'must be array',
+  'must have required property "content"',
+  'Validation failed',
 ];
 
 export function isLocalTask(task: string): boolean {
   const taskLower = task.toLowerCase().trim();
   return LOCAL_TASK_WHITELIST.some(local => 
-    taskLower === local.toLowerCase() || 
-    taskLower.startsWith(local.toLowerCase())
+    taskLower === local.toLowerCase()
   );
 }
 
+export function isRetryableError(error: string): boolean {
+  const errorLower = error.toLowerCase();
+  return RETRYABLE_ERRORS.some(e => errorLower.includes(e.toLowerCase()));
+}
+
 export function shouldUseExternal(task: string): boolean {
-  const forceLocal = process.env.NUPI_FORCE_LOCAL === 'true';
-  const selfModelStrong = process.env.NUPI_SELF_MODEL_STRONG === 'true';
-  
-  if (forceLocal || selfModelStrong) return false;
+  if (process.env.NUPI_FORCE_LOCAL === 'true') return false;
   return !isLocalTask(task);
 }
 

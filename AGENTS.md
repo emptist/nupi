@@ -22,6 +22,8 @@
 
 ## AI 身份
 
+NuPI = nezha + pi
+
 ```
 项目: NuPI (不是 nezha!)
 职责: 执行任务、代码评审、自主工作

@@ -67,22 +67,38 @@ export class ExternalDelegate {
     }
 
     try {
-      const response = await fetch(agent.url, {
+      // Step 1: Create a new session
+      const sessionResponse = await fetch(`${agent.url}/session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: 'NuPI Delegation' }),
+        signal: AbortSignal.timeout(this.timeout),
+      });
+
+      if (!sessionResponse.ok) {
+        return { success: false, error: `Session creation failed: HTTP ${sessionResponse.status}` };
+      }
+
+      const session = await sessionResponse.json() as { id: string };
+      const sessionId = session.id.startsWith('ses_') ? session.id : `ses_${session.id}`;
+
+      // Step 2: Send the task to the session
+      const taskResponse = await fetch(`${agent.url}/session/${sessionId}/message`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          task,
+          parts: [{ type: 'text', text: task }],
           tools: agent.tools,
           model: agent.model || this.defaultModel,
         }),
         signal: AbortSignal.timeout(this.timeout),
       });
 
-      if (!response.ok) {
-        return { success: false, error: `HTTP ${response.status}: ${response.statusText}` };
+      if (!taskResponse.ok) {
+        return { success: false, error: `Task failed: HTTP ${taskResponse.status}: ${await taskResponse.text()}` };
       }
 
-      const result = await response.json() as SingleResult;
+      const result = await taskResponse.json() as SingleResult;
       return {
         success: result.exitCode === 0,
         results: [result],
