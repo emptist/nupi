@@ -8,6 +8,8 @@
  * 4. Using Pi agent-loop for real continuous work
  */
 
+import { isLocalTask, shouldUseExternal } from '@nezha/nupi';
+
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { execSync } from "child_process";
 
@@ -172,16 +174,22 @@ Your goal: continuously find and complete work WITHOUT asking user.
 - ❌ edit does NOT use "oldString"/"newString" - use "edits" array
 - ❌ DO NOT use ~ in paths - ALWAYS expand to absolute path first!
 
-### Path Handling - CRITICAL!
-- Pi path-utils.ts resolveToCwd() can DOUBLE the path if you pass absolute paths
-- Example: /Users/jk/gits/hub/tools_ai/.gitinfo → /cwd/Users/jk/... (WRONG!)
-- Solution: Check CWD first, use RELATIVE paths from CWD whenever possible
-
-### Tilde (~) Path Expansion - CRITICAL!
+### Tilde (~) Path Expansion - CRITICAL! (MUST FOLLOW)
 - Pi does NOT expand ~ in file paths automatically
-- Before using read/write/edit on any path containing ~, you MUST convert it:
+- NEVER use ~ in ANY file operation - it will FAIL 100%!
+- If you see ~ in any path, STOP and convert first using:
+  1. Run: bash { "command": "echo $HOME" } → get /Users/jk
+  2. Construct absolute path: /Users/jk/gits/hub/tools_ai/...
 - Example: ~/gits/hub/tools_ai/ → /Users/jk/gits/hub/tools_ai/
-- Use bash to get absolute path: { "command": "echo ~" } then construct full path
+- ❌ NEVER do: read { "path": "~/..." }
+- ✅ ALWAYS do: read { "path": "/Users/jk/..." }
+
+### Pi Commands - HOW TO CALL (MUST FOLLOW)
+- nupi-status is a Pi COMMAND, NOT bash command!
+- DO NOT run: bash { "command": "nupi-status" } → FAILS!
+- DO run: Just type "nupi-status" in your message (Pi will handle it)
+- Or use: pi.sendUserMessage("nupi-status", { deliverAs: "steer" })
+- Similarly: /nupi-share, /nupi-refresh, /nupi-mode, /nupi-work
 
 ### Path Handling - CRITICAL!
 - Pi path-utils.ts resolveToCwd() can DOUBLE the path if you pass absolute paths
@@ -189,10 +197,10 @@ Your goal: continuously find and complete work WITHOUT asking user.
 - Solution: Always use RELATIVE paths from current directory
 - If you MUST use absolute path, ensure the external agent has correct CWD set
 
-### Work Priority - Use NuPI Tools First (HTTP API, no path issues):
-1. **Check Pending Tasks** - Run: nupi-tasks (HTTP API, always works)
-2. **Check Open Issues** - Run: nupi-issues (HTTP API)
-3. **Check Broadcasts** - Run: nupi-status (HTTP API)
+### Work Priority - Use HTTP API First (No path issues!):
+1. **Check Pending Tasks** - Just type "nupi-tasks" (Pi command, NOT bash!)
+2. **Check Open Issues** - Just type "nupi-issues" (Pi command!)
+3. **Check Broadcasts** - Just type "nupi-status" (Pi command!)
 4. **If you must use files**: Use ABSOLUTE paths only, NEVER use ~
    - ❌ BAD: ~/gits/hub/ → becomes /Users/jk/.../~/gits/hub/ (WRONG!)
    - ✅ GOOD: /Users/jk/gits/hub/tools_ai/ (correct)
@@ -227,12 +235,22 @@ export default function nezhaAutoWork(pi: ExtensionAPI): void {
     const work = await fetchWorkFromNezha();
     if (work) {
       let message = "";
+      const taskDesc = `${work.title} ${work.description || ""}`;
+      
+      // Check if task requires external model (OpenCode)
+      const useExternal = shouldUseExternal(taskDesc);
+      if (useExternal) {
+        console.log("[NuPI] Task requires external model (OpenCode) - delegating...");
+      } else {
+        console.log("[NuPI] Task in whitelist - using local model");
+      }
+      
       switch (work.type) {
         case "task":
-          message = `📋 **New Task**: ${work.title}\n\n${work.description || "No description"}\n\nPriority: ${work.priority || "normal"}`;
+          message = `📋 **New Task**: ${work.title}\n\n${work.description || "No description"}\n\nPriority: ${work.priority || "normal"}${useExternal ? "\n\n💡 Using OpenCode for this task" : ""}`;
           break;
         case "issue":
-          message = `⚠️ **New Issue**: ${work.title}\n\n${work.description || ""}\n\nSeverity: ${work.severity || "unknown"}`;
+          message = `⚠️ **New Issue**: ${work.title}\n\n${work.description || ""}\n\nSeverity: ${work.severity || "unknown"}${useExternal ? "\n\n💡 Using OpenCode for this issue" : ""}`;
           break;
         case "broadcast":
           message = `📢 **Broadcast**: ${work.title}`;
