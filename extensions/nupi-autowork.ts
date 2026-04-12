@@ -172,11 +172,22 @@ Your goal: continuously find and complete work WITHOUT asking user.
 - ❌ edit does NOT use "oldString"/"newString" - use "edits" array
 - ❌ DO NOT use ~ in paths - ALWAYS expand to absolute path first!
 
+### Path Handling - CRITICAL!
+- Pi path-utils.ts resolveToCwd() can DOUBLE the path if you pass absolute paths
+- Example: /Users/jk/gits/hub/tools_ai/.gitinfo → /cwd/Users/jk/... (WRONG!)
+- Solution: Check CWD first, use RELATIVE paths from CWD whenever possible
+
 ### Tilde (~) Path Expansion - CRITICAL!
 - Pi does NOT expand ~ in file paths automatically
 - Before using read/write/edit on any path containing ~, you MUST convert it:
 - Example: ~/gits/hub/tools_ai/ → /Users/jk/gits/hub/tools_ai/
 - Use bash to get absolute path: { "command": "echo ~" } then construct full path
+
+### Path Handling - CRITICAL!
+- Pi path-utils.ts resolveToCwd() can DOUBLE the path if you pass absolute paths
+- Example: /Users/jk/gits/hub/tools_ai/.gitinfo → /cwd/Users/jk/... (WRONG!)
+- Solution: Always use RELATIVE paths from current directory
+- If you MUST use absolute path, ensure the external agent has correct CWD set
 
 ### Work Priority - Use NuPI Tools First (HTTP API, no path issues):
 1. **Check Pending Tasks** - Run: nupi-tasks (HTTP API, always works)

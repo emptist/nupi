@@ -15,6 +15,8 @@ export { PiExecutor, type PiTaskResult, type PiConfig } from './services/PiExecu
 export { PiSDKExecutor } from './services/PiSDKExecutor.js';
 export { ExternalDelegate, createExternalDelegate };
 
+export { isLocalTask, shouldUseExternal, LOCAL_TASK_WHITELIST };
+
 export type {
   WorkMode,
   ExternalAgentConfig,
@@ -43,6 +45,40 @@ const DEFAULT_OPENCODE_AGENT = {
     tools: ['read', 'write', 'edit', 'bash', 'grep', 'glob', 'find'],
   },
 };
+
+const LOCAL_TASK_WHITELIST = [
+  'nupi-tasks',
+  'nupi-issues', 
+  'nupi-status',
+  'nupi-learn',
+  'nupi-search',
+  'nupi-task-take',
+  'nupi-task-done',
+  'git rev-parse',
+  'pwd',
+  'ls',
+  'ls -la',
+  'ls -a',
+  'echo',
+  'whoami',
+  'date',
+  'nupi-mode',
+  'nupi-model',
+];
+
+export function isLocalTask(task: string): boolean {
+  const taskLower = task.toLowerCase().trim();
+  return LOCAL_TASK_WHITELIST.some(local => 
+    taskLower === local.toLowerCase() || 
+    taskLower.startsWith(local.toLowerCase())
+  );
+}
+
+export function shouldUseExternal(task: string): boolean {
+  const forceLocal = process.env.NUPI_FORCE_LOCAL === 'true';
+  if (forceLocal) return false;
+  return !isLocalTask(task);
+}
 
 export function createNuPI(config: NuPIConfig) {
   const agents = config.mode === 'external' 
