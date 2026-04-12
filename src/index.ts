@@ -15,7 +15,7 @@ export { PiExecutor, type PiTaskResult, type PiConfig } from './services/PiExecu
 export { PiSDKExecutor } from './services/PiSDKExecutor.js';
 export { ExternalDelegate, createExternalDelegate };
 
-export { isLocalTask, shouldUseExternal, isRetryableError, LOCAL_TASK_WHITELIST, isSelfModelStrong, getNuPIStatus };
+export { LOCAL_TASK_WHITELIST };
 
 export type {
   WorkMode,

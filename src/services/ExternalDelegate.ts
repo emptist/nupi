@@ -98,8 +98,11 @@ export class ExternalDelegate {
       }
 
       const result = await taskResponse.json() as SingleResult;
+      // Handle both exitCode and finish status
+      const info = result as unknown as { info?: { finish?: string } };
+      const success = result.exitCode === 0 || info?.info?.finish === 'stop';
       return {
-        success: result.exitCode === 0,
+        success,
         results: [result],
         output: this.extractOutput(result),
       };
@@ -165,17 +168,21 @@ export class ExternalDelegate {
   }
 
   private extractOutput(result: SingleResult): string {
-    if (result.messages && result.messages.length > 0) {
-      const lastMessage = result.messages[result.messages.length - 1];
-      if (lastMessage && typeof lastMessage === 'object' && 'content' in (lastMessage as Record<string, unknown>)) {
-        const content = (lastMessage as { content: unknown }).content;
-        if (Array.isArray(content)) {
-          return content
-            .filter((c): c is { type: 'text'; text: string } => c.type === 'text')
-            .map((c) => c.text)
-            .join('\n');
-        }
-      }
+    // Try direct parts property
+    const r = result as unknown as { parts?: Array<{ text?: string; type?: string }> };
+    if (r.parts) {
+      const texts = r.parts
+        .filter((p): p is { text: string } => !!p.text)
+        .map((p) => p.text);
+      if (texts.length > 0) return texts.join('\n');
+    }
+    // Fallback to old structure with info.parts
+    const info = result as unknown as { info?: { parts?: Array<{ text?: string; type?: string }> } };
+    if (info?.info?.parts) {
+      const texts = info.info.parts
+        .filter((p): p is { text: string } => !!p.text)
+        .map((p) => p.text);
+      if (texts.length > 0) return texts.join('\n');
     }
     return result.stderr || '';
   }

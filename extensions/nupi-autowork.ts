@@ -263,15 +263,6 @@ export default function nezhaAutoWork(pi: ExtensionAPI): void {
                 opencode: {
                   name: "opencode",
                   url: "http://127.0.0.1:5111",
-                  tools: [
-                    "read",
-                    "write",
-                    "edit",
-                    "bash",
-                    "grep",
-                    "glob",
-                    "find",
-                  ],
                 },
               },
             });
