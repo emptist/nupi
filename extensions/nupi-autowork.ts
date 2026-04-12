@@ -259,7 +259,21 @@ export default function nezhaAutoWork(pi: ExtensionAPI): void {
           if (!externalDelegate) {
             externalDelegate = createExternalDelegate({
               mode: "external",
-              agents: {},
+              agents: {
+                opencode: {
+                  name: "opencode",
+                  url: "http://127.0.0.1:5111",
+                  tools: [
+                    "read",
+                    "write",
+                    "edit",
+                    "bash",
+                    "grep",
+                    "glob",
+                    "find",
+                  ],
+                },
+              },
             });
           }
           const result = await externalDelegate.delegate({
@@ -465,7 +479,11 @@ export default function nezhaAutoWork(pi: ExtensionAPI): void {
     }
 
     for (const toolName of ["read", "write", "edit", "glob", "find", "grep"]) {
-      if (event.toolName === toolName && input.path) {
+      if (
+        event.toolName === toolName &&
+        input.path &&
+        typeof input.path === "string"
+      ) {
         const pathStr = input.path as string;
         if (pathStr.startsWith("~") || pathStr.includes("/~")) {
           input.path = pathStr
