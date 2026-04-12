@@ -15,7 +15,7 @@ export { PiExecutor, type PiTaskResult, type PiConfig } from './services/PiExecu
 export { PiSDKExecutor } from './services/PiSDKExecutor.js';
 export { ExternalDelegate, createExternalDelegate };
 
-export { isLocalTask, shouldUseExternal, LOCAL_TASK_WHITELIST };
+export { isLocalTask, shouldUseExternal, LOCAL_TASK_WHITELIST, isSelfModelStrong, getNuPIStatus };
 
 export type {
   WorkMode,
@@ -76,8 +76,22 @@ export function isLocalTask(task: string): boolean {
 
 export function shouldUseExternal(task: string): boolean {
   const forceLocal = process.env.NUPI_FORCE_LOCAL === 'true';
-  if (forceLocal) return false;
+  const selfModelStrong = process.env.NUPI_SELF_MODEL_STRONG === 'true';
+  
+  if (forceLocal || selfModelStrong) return false;
   return !isLocalTask(task);
+}
+
+export function isSelfModelStrong(): boolean {
+  return process.env.NUPI_SELF_MODEL_STRONG === 'true';
+}
+
+export function getNuPIStatus(): { mode: string; selfModelStrong: boolean; hasExternal: boolean } {
+  return {
+    mode: process.env.NUPI_MODE || 'standalone',
+    selfModelStrong: isSelfModelStrong(),
+    hasExternal: process.env.NUPI_EXTERNAL_URL !== undefined,
+  };
 }
 
 export function createNuPI(config: NuPIConfig) {
