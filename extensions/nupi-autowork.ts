@@ -11,6 +11,7 @@
 import {
   isLocalTask,
   shouldUseExternal,
+  isSelfModelStrong,
   createExternalDelegate,
 } from "@nezha/nupi";
 
@@ -284,21 +285,7 @@ export default function nezhaAutoWork(pi: ExtensionAPI): void {
         }
       }
 
-      // Fall back to local model (whitelist tasks)
-      console.log("[NuPI] Using local model...");
-      let message = "";
-      switch (work.type) {
-        case "task":
-          message = `📋 **New Task**: ${work.title}\n\n${work.description || "No description"}\n\nPriority: ${work.priority || "normal"}`;
-          break;
-        case "issue":
-          message = `⚠️ **New Issue**: ${work.title}\n\n${work.description || ""}\n\nSeverity: ${work.severity || "unknown"}`;
-          break;
-        case "broadcast":
-          message = `📢 **Broadcast**: ${work.title}`;
-          break;
-      }
-      pi.sendUserMessage(message, { deliverAs: "steer" });
+      console.log("[NuPI] No local whitelist — skipping local model steer");
     }
   }
 
@@ -307,26 +294,25 @@ export default function nezhaAutoWork(pi: ExtensionAPI): void {
 
     await ensureNezhaApiRunning();
 
-    // Feedback: show current mode
-    // NuPI can work standalone with its own strong model, or delegate to OpenCode via Piano
     const opencodeRunning = await isNezhaApiRunning();
-    const mode = opencodeRunning
-      ? "🔗 External (OpenCode)"
-      : "💻 Standalone (NuPI own strong model)";
+    const strongModel = isSelfModelStrong();
 
-    pi.sendUserMessage(`📊 NuPI Mode: ${mode}`, { deliverAs: "steer" });
-    pi.sendUserMessage("Use /nupi-mode to check/switch", {
-      deliverAs: "steer",
-    });
-
-    pi.sendUserMessage(AUTO_WORK_PROMPT, { deliverAs: "steer" });
+    if (strongModel) {
+      const mode = opencodeRunning
+        ? "🔗 External (OpenCode)"
+        : "💻 Standalone (NuPI own strong model)";
+      pi.sendUserMessage(`📊 NuPI Mode: ${mode}`, { deliverAs: "steer" });
+      pi.sendUserMessage("Use /nupi-mode to check/switch", { deliverAs: "steer" });
+      pi.sendUserMessage(AUTO_WORK_PROMPT, { deliverAs: "steer" });
+    } else {
+      pi.sendUserMessage("📊 NuPI Mode: 🔗 Delegate-only (weak local model → OpenCode)", { deliverAs: "steer" });
+      console.log("[NuPI] Weak model detected — skipping local steer, delegation only");
+    }
 
     setTimeout(() => {
       pi.sendUserMessage(
         "Starting autonomous work check... Run: nupi-status to see current state.",
-        {
-          deliverAs: "steer",
-        },
+        { deliverAs: "steer" },
       );
     }, 3000);
 
