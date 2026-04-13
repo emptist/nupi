@@ -158,9 +158,9 @@ export class ExternalDelegate {
 
     while (Date.now() - startTime < maxPollTime) {
       const statusResponse = await fetch(
-        `${agent.url}/session/${sessionId}/status`,
+        `${agent.url}/session/${sessionId}`,
         {
-          signal: AbortSignal.timeout(5000), // 5s timeout for status check
+          signal: AbortSignal.timeout(5000),
         },
       );
 
@@ -171,36 +171,24 @@ export class ExternalDelegate {
         };
       }
 
-      let statusData: {
-        type?: string;
-        retry?: { message?: string };
-        info?: { status?: string; finish?: string };
+      const statusText = await statusResponse.text();
+      let sessionData: {
+        id?: string;
+        time?: { created?: number; updated?: number; archived?: number };
+        summary?: { additions?: number; deletions?: number; files?: number };
       } | null = null;
 
-      const statusText = await statusResponse.text();
       try {
-        statusData = JSON.parse(statusText) as {
-          type?: string;
-          retry?: { message?: string };
-          info?: { status?: string; finish?: string };
-        } | null;
+        sessionData = JSON.parse(statusText);
       } catch (e) {
-        if (statusText.includes("Free usage exceeded")) {
-          return {
-            success: false,
-            error: "OpenCode free usage exceeded. Please check your subscription or usage limits.",
-          };
-        }
         return {
           success: false,
-          error: `Invalid status response: ${statusText.substring(0, 100)}`,
+          error: `Invalid session response: ${statusText.substring(0, 100)}`,
         };
       }
-      
-      // Check if session is no longer running
-      // Based on issue: {"type": "retry", "attempt": 1, "message": "Free usage exceeded..."}
-      if (statusData && statusData.type !== "retry" && statusData.info?.status !== "running") {
-        // Session completed, retrieve the result
+
+      const isArchived = sessionData?.time?.archived != null;
+      if (isArchived) {
         const messageResponse = await fetch(
           `${agent.url}/session/${sessionId}/message`,
           {
@@ -211,52 +199,34 @@ export class ExternalDelegate {
         if (!messageResponse.ok) {
           return {
             success: false,
-            error: `Failed to retrieve result: HTTP ${messageResponse.status}: ${await messageResponse.text()}`,
+            error: `Failed to retrieve messages: HTTP ${messageResponse.status}`,
           };
         }
 
-          let result: SingleResult | null = null;
         const messageText = await messageResponse.text();
+        let messages: Array<{ info?: { role?: string }; parts?: Array<{ type?: string; text?: string }> }> = [];
         try {
-          result = JSON.parse(messageText) as SingleResult;
+          messages = JSON.parse(messageText) as typeof messages;
         } catch (e) {
-          if (messageText.includes("Free usage exceeded")) {
-            return {
-              success: false,
-              error: "OpenCode free usage exceeded. Please check your subscription or usage limits.",
-            };
-          }
           return {
             success: false,
-            error: `Invalid result response: ${messageText.substring(0, 100)}`,
+            error: `Invalid message response: ${messageText.substring(0, 100)}`,
           };
         }
-        
-        if (!result) {
-          return {
-            success: false,
-            error: "Failed to parse result response",
-          };
-        }
-        
-        if (!result) {
-          return {
-            success: false,
-            error: "Failed to parse result response",
-          };
-        }
-        
-        // Handle both exitCode and finish status
-        const info = result as unknown as { info?: { finish?: string } };
-        const success = result.exitCode === 0 || info?.info?.finish === "stop";
+
+        const assistantMessages = messages
+          .filter(m => m.info?.role === "assistant")
+          .flatMap(m => (m.parts || []).filter(p => p.type === "text").map(p => p.text || ""))
+          .join("\n");
+
+        const summary = sessionData?.summary;
         return {
-          success,
-          results: [result],
-          output: this.extractOutput(result),
+          success: true,
+          results: [],
+          output: assistantMessages || `Session completed. ${summary?.additions ?? 0} additions, ${summary?.deletions ?? 0} deletions in ${summary?.files ?? 0} files.`,
         };
       }
 
-      // Still running, wait before polling again
       await new Promise(resolve => setTimeout(resolve, pollInterval));
     }
 
