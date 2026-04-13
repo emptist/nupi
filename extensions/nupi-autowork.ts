@@ -403,6 +403,9 @@ export default function nezhaAutoWork(pi: ExtensionAPI): void {
         input.path = input.filePath;
         delete input.filePath;
       }
+      if (input.path && typeof input.path !== "string") {
+        input.path = String(input.path);
+      }
       if (input.limits && !input.limit) {
         input.limit = input.limits;
         delete input.limits;
@@ -420,6 +423,9 @@ export default function nezhaAutoWork(pi: ExtensionAPI): void {
         input.path = input.filePath;
         delete input.filePath;
       }
+      if (input.path && typeof input.path !== "string") {
+        input.path = String(input.path);
+      }
       if (!input.content && input.fileContent) {
         input.content = input.fileContent;
         delete input.fileContent;
@@ -430,6 +436,9 @@ export default function nezhaAutoWork(pi: ExtensionAPI): void {
       if (!input.path && input.filePath) {
         input.path = input.filePath;
         delete input.filePath;
+      }
+      if (input.path && typeof input.path !== "string") {
+        input.path = String(input.path);
       }
       if (!input.edits) {
         if (input.oldString && input.newString) {
