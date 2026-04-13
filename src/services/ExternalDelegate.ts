@@ -126,12 +126,12 @@ export class ExternalDelegate {
       ? session.id
       : `ses_${session.id}`;
 
-    // Step 2: Send the task to the session (streaming response)
+    // Step 2: Send the task to the session using prompt_async (non-blocking)
     const taskPayload = {
       parts: [{ type: "text", text: task }],
     };
-    const taskResponse = await fetch(
-      `${agent.url}/session/${sessionId}/message`,
+    const asyncResponse = await fetch(
+      `${agent.url}/session/${sessionId}/prompt_async`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -140,65 +140,79 @@ export class ExternalDelegate {
       },
     );
 
-    if (!taskResponse.ok) {
-      return {
-        success: false,
-        error: `Task failed: HTTP ${taskResponse.status}: ${await taskResponse.text()}`,
-      };
-    }
-
-    // Handle streaming response - collect chunks until stream ends
-    const result = await this.readStreamingResponse(taskResponse);
-    if (!result) {
-      return { success: false, error: "Failed to read streaming response" };
-    }
-
-    // Handle both exitCode and finish status
-    const info = result as unknown as { info?: { finish?: string } };
-    const success = result.exitCode === 0 || info?.info?.finish === "stop";
-    return {
-      success,
-      results: [result],
-      output: this.extractOutput(result),
-    };
-  }
-
-  private async readStreamingResponse(
-    response: Response,
-  ): Promise<SingleResult | null> {
-    if (!response.body) return null;
-
-    const reader = response.body.getReader();
-    const chunks: Uint8Array[] = [];
-    const decoder = new TextDecoder();
-
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        chunks.push(value);
+    // prompt_async returns 204 No Content immediately
+    if (!asyncResponse.ok) {
+      // Handle both 204 (success) and other error codes
+      if (asyncResponse.status !== 204) {
+        return {
+          success: false,
+          error: `Async task failed: HTTP ${asyncResponse.status}: ${await asyncResponse.text()}`,
+        };
       }
-    } catch (e) {
-      console.error("[ExternalDelegate] Stream read error:", e);
-      return null;
     }
 
-    const concatenated = new Uint8Array(
-      chunks.reduce((acc, chunk) => acc + chunk.length, 0),
-    );
-    let offset = 0;
-    for (const chunk of chunks) {
-      concatenated.set(chunk, offset);
-      offset += chunk.length;
+    // Step 3: Poll for session completion
+    const startTime = Date.now();
+    const pollInterval = 3000; // 3 seconds
+    const maxPollTime = this.timeout - 10000; // Leave 10s buffer
+
+    while (Date.now() - startTime < maxPollTime) {
+      const statusResponse = await fetch(
+        `${agent.url}/session/${sessionId}/status`,
+        {
+          signal: AbortSignal.timeout(5000), // 5s timeout for status check
+        },
+      );
+
+      if (!statusResponse.ok) {
+        return {
+          success: false,
+          error: `Status check failed: HTTP ${statusResponse.status}`,
+        };
+      }
+
+      const statusData = await statusResponse.json() as {
+        type?: string;
+        retry?: { message?: string };
+        info?: { status?: string; finish?: string };
+      };
+      
+      // Check if session is no longer running
+      // Based on issue: {"type": "retry", "attempt": 1, "message": "Free usage exceeded..."}
+      if (statusData.type !== "retry" && statusData.info?.status !== "running") {
+        // Session completed, retrieve the result
+        const messageResponse = await fetch(
+          `${agent.url}/session/${sessionId}/message`,
+          {
+            signal: AbortSignal.timeout(this.timeout),
+          },
+        );
+
+        if (!messageResponse.ok) {
+          return {
+            success: false,
+            error: `Failed to retrieve result: HTTP ${messageResponse.status}: ${await messageResponse.text()}`,
+          };
+        }
+
+        const result = (await messageResponse.json()) as SingleResult;
+        
+        // Handle both exitCode and finish status
+        const info = result as unknown as { info?: { finish?: string } };
+        const success = result.exitCode === 0 || info?.info?.finish === "stop";
+        return {
+          success,
+          results: [result],
+          output: this.extractOutput(result),
+        };
+      }
+
+      // Still running, wait before polling again
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
     }
 
-    const text = decoder.decode(concatenated);
-    try {
-      return JSON.parse(text) as SingleResult;
-    } catch {
-      console.error("[ExternalDelegate] Failed to parse streaming response:", text.substring(0, 500));
-      return null;
-    }
+    // Timeout reached
+    return { success: false, error: "Task timed out after polling" };
   }
 
   private async parallelDelegate(
