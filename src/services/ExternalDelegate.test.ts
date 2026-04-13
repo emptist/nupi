@@ -72,9 +72,7 @@ describe('ExternalDelegate', () => {
 
   describe('delegate', () => {
     it('should execute single delegate', async () => {
-      fetchMock.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({
+      const singleResult = {
           agent: 'scout',
           agentSource: 'external',
           task: 'test',
@@ -82,7 +80,11 @@ describe('ExternalDelegate', () => {
           messages: [{ content: [{ type: 'text', text: 'result' }] }],
           stderr: '',
           usage: { input: 100, output: 50, cacheRead: 0, cacheWrite: 0, cost: 0.001, contextTokens: 1000, turns: 1 },
-        }),
+        };
+      fetchMock.mockResolvedValue({
+        ok: true,
+        text: () => Promise.resolve(JSON.stringify(singleResult)),
+        json: () => Promise.resolve(singleResult),
       });
 
       const result = await delegate.delegate({ mode: 'single', agent: 'scout', task: 'test task' });
@@ -108,9 +110,7 @@ describe('ExternalDelegate', () => {
     });
 
     it('should execute chain delegate', async () => {
-      fetchMock.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({
+      const scoutResult = {
           agent: 'scout',
           agentSource: 'external',
           task: 'scout task',
@@ -118,10 +118,8 @@ describe('ExternalDelegate', () => {
           messages: [{ content: [{ type: 'text', text: 'scout result' }] }],
           stderr: '',
           usage: { input: 100, output: 50, cacheRead: 0, cacheWrite: 0, cost: 0.001, contextTokens: 1000, turns: 1 },
-        }),
-      }).mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({
+        };
+      const plannerResult = {
           agent: 'planner',
           agentSource: 'external',
           task: 'planner task',
@@ -129,7 +127,15 @@ describe('ExternalDelegate', () => {
           messages: [{ content: [{ type: 'text', text: 'planner result' }] }],
           stderr: '',
           usage: { input: 200, output: 100, cacheRead: 0, cacheWrite: 0, cost: 0.002, contextTokens: 2000, turns: 1 },
-        }),
+        };
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        text: () => Promise.resolve(JSON.stringify(scoutResult)),
+        json: () => Promise.resolve(scoutResult),
+      }).mockResolvedValueOnce({
+        ok: true,
+        text: () => Promise.resolve(JSON.stringify(plannerResult)),
+        json: () => Promise.resolve(plannerResult),
       });
 
       const result = await delegate.delegate({
@@ -145,9 +151,7 @@ describe('ExternalDelegate', () => {
     });
 
     it('should stop chain on error', async () => {
-      fetchMock.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({
+      const errorResult = {
           agent: 'scout',
           agentSource: 'external',
           task: 'scout task',
@@ -155,7 +159,11 @@ describe('ExternalDelegate', () => {
           messages: [],
           stderr: 'error',
           usage: { input: 100, output: 50, cacheRead: 0, cacheWrite: 0, cost: 0.001, contextTokens: 1000, turns: 1 },
-        }),
+        };
+      fetchMock.mockResolvedValue({
+        ok: true,
+        text: () => Promise.resolve(JSON.stringify(errorResult)),
+        json: () => Promise.resolve(errorResult),
       });
 
       const result = await delegate.delegate({
@@ -173,9 +181,7 @@ describe('ExternalDelegate', () => {
 
   describe('parallel delegate', () => {
     it('should execute multiple tasks in parallel', async () => {
-      fetchMock.mockImplementation(() => Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve({
+      const workerResult = {
           agent: 'worker',
           agentSource: 'external',
           task: 'task',
@@ -183,7 +189,11 @@ describe('ExternalDelegate', () => {
           messages: [{ content: [{ type: 'text', text: 'result' }] }],
           stderr: '',
           usage: { input: 100, output: 50, cacheRead: 0, cacheWrite: 0, cost: 0.001, contextTokens: 1000, turns: 1 },
-        }),
+        };
+      fetchMock.mockImplementation(() => Promise.resolve({
+        ok: true,
+        text: () => Promise.resolve(JSON.stringify(workerResult)),
+        json: () => Promise.resolve(workerResult),
       }));
 
       const result = await delegate.delegate({
