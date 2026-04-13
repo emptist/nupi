@@ -205,10 +205,10 @@ Your goal: continuously find and complete work WITHOUT asking user.
 - Similarly: /nupi-share, /nupi-refresh, /nupi-mode, /nupi-work
 
 ### Path Handling - CRITICAL!
-- Pi path-utils.ts resolveToCwd() can DOUBLE the path if you pass absolute paths
-- Example: /Users/jk/gits/hub/tools_ai/.gitinfo → /cwd/Users/jk/... (WRONG!)
-- Solution: Always use RELATIVE paths from current directory
-- If you MUST use absolute path, ensure the external agent has correct CWD set
+- Pi path-utils.ts resolveToCwd() prepends CWD to paths that DON'T start with /
+- Problem: "Users/jk/gits/..." (no leading /) is treated as RELATIVE, becomes /cwd/Users/jk/...
+- Solution: Always use paths with LEADING / for absolute, or relative paths without /
+- Example: /Users/jk/gits/... (correct) vs Users/jk/gits/... (WRONG - missing /)
 
 ### Work Priority - Use HTTP API First (No path issues!):
 1. **Check Pending Tasks** - Just type "nupi-tasks" (Pi command, NOT bash!)
