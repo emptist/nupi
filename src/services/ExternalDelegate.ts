@@ -106,7 +106,6 @@ export class ExternalDelegate {
     agent: ExternalAgentConfig,
     task: string,
   ): Promise<DelegateResult> {
-    // Step 1: Create a new session
     const sessionResponse = await fetch(`${agent.url}/session`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -126,112 +125,101 @@ export class ExternalDelegate {
       ? session.id
       : `ses_${session.id}`;
 
-    // Step 2: Send the task to the session using prompt_async (non-blocking)
-    const taskPayload = {
-      parts: [{ type: "text", text: task }],
-    };
     const asyncResponse = await fetch(
       `${agent.url}/session/${sessionId}/prompt_async`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(taskPayload),
-        signal: AbortSignal.timeout(this.timeout),
+        body: JSON.stringify({ parts: [{ type: "text", text: task }] }),
+        signal: AbortSignal.timeout(10000),
       },
     );
 
-    // prompt_async returns 204 No Content immediately
-    if (!asyncResponse.ok) {
-      // Handle both 204 (success) and other error codes
-      if (asyncResponse.status !== 204) {
-        return {
-          success: false,
-          error: `Async task failed: HTTP ${asyncResponse.status}: ${await asyncResponse.text()}`,
-        };
-      }
+    if (asyncResponse.status !== 204) {
+      return {
+        success: false,
+        error: `Async prompt failed: HTTP ${asyncResponse.status}`,
+      };
     }
 
-    // Step 3: Poll for session completion
     const startTime = Date.now();
-    const pollInterval = 3000; // 3 seconds
-    const maxPollTime = this.timeout - 10000; // Leave 10s buffer
+    const pollInterval = 3000;
+    const maxPollTime = this.timeout - 5000;
 
     while (Date.now() - startTime < maxPollTime) {
+      await new Promise((r) => setTimeout(r, pollInterval));
+
       const statusResponse = await fetch(
-        `${agent.url}/session/${sessionId}`,
-        {
-          signal: AbortSignal.timeout(5000),
-        },
+        `${agent.url}/session/status`,
+        { signal: AbortSignal.timeout(5000) },
       );
-
-      if (!statusResponse.ok) {
-        return {
-          success: false,
-          error: `Status check failed: HTTP ${statusResponse.status}`,
-        };
+      if (statusResponse.ok) {
+        const statusData = (await statusResponse.json()) as Record<
+          string,
+          { type?: string; message?: string }
+        >;
+        const sessionStatus = statusData[sessionId];
+        if (sessionStatus?.type === "retry" && sessionStatus.message?.includes("Free usage exceeded")) {
+          return {
+            success: false,
+            error: `OpenCode: ${sessionStatus.message}`,
+          };
+        }
       }
 
-      const statusText = await statusResponse.text();
-      let sessionData: {
-        id?: string;
-        time?: { created?: number; updated?: number; archived?: number };
-        summary?: { additions?: number; deletions?: number; files?: number };
-      } | null = null;
+      const sessionInfo = await fetch(`${agent.url}/session/${sessionId}`, {
+        signal: AbortSignal.timeout(5000),
+      });
+      if (!sessionInfo.ok) continue;
 
-      try {
-        sessionData = JSON.parse(statusText);
-      } catch (e) {
-        return {
-          success: false,
-          error: `Invalid session response: ${statusText.substring(0, 100)}`,
-        };
-      }
-
-      const isArchived = sessionData?.time?.archived != null;
-      if (isArchived) {
-        const messageResponse = await fetch(
+      const sessionData = (await sessionInfo.json()) as {
+        time?: { archived?: number };
+      };
+      if (sessionData.time?.archived != null) {
+        const msgResponse = await fetch(
           `${agent.url}/session/${sessionId}/message`,
-          {
-            signal: AbortSignal.timeout(this.timeout),
-          },
+          { signal: AbortSignal.timeout(this.timeout) },
         );
-
-        if (!messageResponse.ok) {
+        if (!msgResponse.ok) {
           return {
             success: false,
-            error: `Failed to retrieve messages: HTTP ${messageResponse.status}`,
+            error: `Failed to get messages: HTTP ${msgResponse.status}`,
           };
         }
 
-        const messageText = await messageResponse.text();
-        let messages: Array<{ info?: { role?: string }; parts?: Array<{ type?: string; text?: string }> }> = [];
+        const msgText = await msgResponse.text();
+        let messages: Array<{
+          info?: { role?: string; finish?: string; error?: { name?: string; data?: { message?: string } } };
+          parts?: Array<{ type?: string; text?: string }>;
+        }> = [];
         try {
-          messages = JSON.parse(messageText) as typeof messages;
-        } catch (e) {
+          messages = JSON.parse(msgText) as typeof messages;
+        } catch {
           return {
             success: false,
-            error: `Invalid message response: ${messageText.substring(0, 100)}`,
+            error: `Invalid message response: ${msgText.substring(0, 200)}`,
           };
         }
 
-        const assistantMessages = messages
-          .filter(m => m.info?.role === "assistant")
-          .flatMap(m => (m.parts || []).filter(p => p.type === "text").map(p => p.text || ""))
-          .join("\n");
+        const assistantMsg = messages.find((m) => m.info?.role === "assistant");
+        if (assistantMsg?.info?.error) {
+          const errMsg = assistantMsg.info.error.data?.message || assistantMsg.info.error.name || "Unknown error";
+          return { success: false, error: `OpenCode error: ${errMsg}` };
+        }
 
-        const summary = sessionData?.summary;
+        const textParts = (assistantMsg?.parts || [])
+          .filter((p) => p.type === "text" && p.text)
+          .map((p) => p.text!);
+
         return {
           success: true,
           results: [],
-          output: assistantMessages || `Session completed. ${summary?.additions ?? 0} additions, ${summary?.deletions ?? 0} deletions in ${summary?.files ?? 0} files.`,
+          output: textParts.join("\n") || "Task completed (no text output)",
         };
       }
-
-      await new Promise(resolve => setTimeout(resolve, pollInterval));
     }
 
-    // Timeout reached
-    return { success: false, error: "Task timed out after polling" };
+    return { success: false, error: "Delegation timed out" };
   }
 
   private async parallelDelegate(
