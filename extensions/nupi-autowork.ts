@@ -149,6 +149,33 @@ async function ensureNezhaApiRunning(): Promise<void> {
   console.error("[NuPI] Nezha start timeout. Will retry later.");
 }
 
+const DELEGATE_ONLY_PROMPT = `## NuPI Delegate-Only Mode
+
+You are NuPI running on a weak local model. You CANNOT do coding tasks yourself.
+Your ONLY job: find tasks and delegate them to OpenCode.
+
+### What you CAN do:
+- Run nupi-tasks to find pending work
+- Run nupi-task-take <id> to claim a task
+- Delegate the task to OpenCode (it will do the actual work)
+- Run nupi-task-done <id> when OpenCode finishes
+
+### What you MUST NOT do:
+- Do NOT try to write or edit code yourself
+- Do NOT try to read files and understand codebases
+- Do NOT try to fix bugs or implement features
+
+### Workflow:
+1. nupi-tasks → pick highest priority
+2. nupi-task-take <id>
+3. Say: "Delegate this to OpenCode" with the task description
+4. Wait for OpenCode result
+5. nupi-task-done <id>
+6. Repeat
+
+### ALWAYS find the next task. NEVER stop. NEVER ask human.
+`;
+
 const AUTO_WORK_PROMPT = `## NuPI Auto-Work Mode (v2.1)
 
 You are NuPI (Nezha united with PI), an autonomous AI worker.
@@ -285,7 +312,19 @@ export default function nezhaAutoWork(pi: ExtensionAPI): void {
         }
       }
 
-      console.log("[NuPI] No local whitelist — skipping local model steer");
+      let message = "";
+      switch (work.type) {
+        case "task":
+          message = `📋 **New Task**: ${work.title}\n\n${work.description || "No description"}\n\nPriority: ${work.priority || "normal"}`;
+          break;
+        case "issue":
+          message = `⚠️ **New Issue**: ${work.title}\n\n${work.description || ""}\n\nSeverity: ${work.severity || "unknown"}`;
+          break;
+        case "broadcast":
+          message = `📢 **Broadcast**: ${work.title}`;
+          break;
+      }
+      pi.sendUserMessage(message, { deliverAs: "steer" });
     }
   }
 
@@ -306,7 +345,7 @@ export default function nezhaAutoWork(pi: ExtensionAPI): void {
       pi.sendUserMessage(AUTO_WORK_PROMPT, { deliverAs: "steer" });
     } else {
       pi.sendUserMessage("📊 NuPI Mode: 🔗 Delegate-only (weak local model → OpenCode)", { deliverAs: "steer" });
-      console.log("[NuPI] Weak model detected — skipping local steer, delegation only");
+      pi.sendUserMessage(DELEGATE_ONLY_PROMPT, { deliverAs: "steer" });
     }
 
     setTimeout(() => {
