@@ -171,15 +171,36 @@ export class ExternalDelegate {
         };
       }
 
-      const statusData = await statusResponse.json() as {
+      let statusData: {
         type?: string;
         retry?: { message?: string };
         info?: { status?: string; finish?: string };
-      };
+      } | null = null;
+
+      try {
+        statusData = await statusResponse.json() as {
+          type?: string;
+          retry?: { message?: string };
+          info?: { status?: string; finish?: string };
+        } | null;
+      } catch (e) {
+        // If we can't parse JSON, it might be an error page (HTML)
+        const text = await statusResponse.text();
+        if (text.includes("Free usage exceeded")) {
+          return {
+            success: false,
+            error: "OpenCode free usage exceeded. Please check your subscription or usage limits.",
+          };
+        }
+        return {
+          success: false,
+          error: `Invalid status response: ${text.substring(0, 100)}`,
+        };
+      }
       
       // Check if session is no longer running
       // Based on issue: {"type": "retry", "attempt": 1, "message": "Free usage exceeded..."}
-      if (statusData.type !== "retry" && statusData.info?.status !== "running") {
+      if (statusData && statusData.type !== "retry" && statusData.info?.status !== "running") {
         // Session completed, retrieve the result
         const messageResponse = await fetch(
           `${agent.url}/session/${sessionId}/message`,
@@ -195,7 +216,37 @@ export class ExternalDelegate {
           };
         }
 
-        const result = (await messageResponse.json()) as SingleResult;
+          let result: SingleResult | null = null;
+        try {
+          result = await messageResponse.json() as SingleResult;
+        } catch (e) {
+          // If we can't parse JSON, it might be an error page (HTML)
+          const text = await messageResponse.text();
+          if (text.includes("Free usage exceeded")) {
+            return {
+              success: false,
+              error: "OpenCode free usage exceeded. Please check your subscription or usage limits.",
+            };
+          }
+          return {
+            success: false,
+            error: `Invalid result response: ${text.substring(0, 100)}`,
+          };
+        }
+        
+        if (!result) {
+          return {
+            success: false,
+            error: "Failed to parse result response",
+          };
+        }
+        
+        if (!result) {
+          return {
+            success: false,
+            error: "Failed to parse result response",
+          };
+        }
         
         // Handle both exitCode and finish status
         const info = result as unknown as { info?: { finish?: string } };
