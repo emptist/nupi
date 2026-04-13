@@ -12,10 +12,10 @@ import {
   isLocalTask,
   shouldUseExternal,
   createExternalDelegate,
-} from "@nezha/nupi";
+} from "/Users/jk/gits/hub/tools_ai/nupi/dist/index.js";
 
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import { getNuPIClient } from "@nezha/nupi";
+import { execSync } from "child_process";
 
 const NEZHA_API_PORT = 5999;
 const NEZHA_API_HOST = "localhost";
@@ -482,12 +482,6 @@ export default function nezhaAutoWork(pi: ExtensionAPI): void {
             .replace(/^~/, process.env.HOME || "/Users/jk")
             .replace(/\/~/g, (process.env.HOME || "/Users/jk") + "/");
         }
-        const home = process.env.HOME || "/Users/jk";
-        const homeSuffix = home.substring(1);
-        const fixedPath = input.path as string;
-        if (!fixedPath.startsWith("/") && fixedPath.startsWith(homeSuffix)) {
-          input.path = "/" + fixedPath;
-        }
       }
     }
   });
@@ -531,9 +525,15 @@ export default function nezhaAutoWork(pi: ExtensionAPI): void {
         ctx.ui.notify("Usage: /nupi-share <message>", "warning");
         return;
       }
+      const { execSync } = await import("child_process");
+      const nezhaDir =
+        process.env.NEZHA_DIR || "/Users/jk/gits/hub/tools_ai/nezha";
+      const safeMessage = args.replace(/"/g, '\\"').replace(/;/g, "\\;");
       try {
-        const api = getNuPIClient();
-        await api.sendBroadcast(args.trim());
+        execSync(
+          `cd ${nezhaDir} && node ./dist/cli/index.js share "${safeMessage}"`,
+          { encoding: "utf-8", timeout: 10000 },
+        );
         ctx.ui.notify("Broadcast sent!", "info");
       } catch (e: any) {
         ctx.ui.notify(`Broadcast failed: ${e.message}`, "error");

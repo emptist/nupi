@@ -177,15 +177,16 @@ export class ExternalDelegate {
         info?: { status?: string; finish?: string };
       } | null = null;
 
-      const statusText = await statusResponse.text();
       try {
-        statusData = JSON.parse(statusText) as {
+        statusData = await statusResponse.json() as {
           type?: string;
           retry?: { message?: string };
           info?: { status?: string; finish?: string };
         } | null;
       } catch (e) {
-        if (statusText.includes("Free usage exceeded")) {
+        // If we can't parse JSON, it might be an error page (HTML)
+        const text = await statusResponse.text();
+        if (text.includes("Free usage exceeded")) {
           return {
             success: false,
             error: "OpenCode free usage exceeded. Please check your subscription or usage limits.",
@@ -193,7 +194,7 @@ export class ExternalDelegate {
         }
         return {
           success: false,
-          error: `Invalid status response: ${statusText.substring(0, 100)}`,
+          error: `Invalid status response: ${text.substring(0, 100)}`,
         };
       }
       
@@ -216,11 +217,12 @@ export class ExternalDelegate {
         }
 
           let result: SingleResult | null = null;
-        const messageText = await messageResponse.text();
         try {
-          result = JSON.parse(messageText) as SingleResult;
+          result = await messageResponse.json() as SingleResult;
         } catch (e) {
-          if (messageText.includes("Free usage exceeded")) {
+          // If we can't parse JSON, it might be an error page (HTML)
+          const text = await messageResponse.text();
+          if (text.includes("Free usage exceeded")) {
             return {
               success: false,
               error: "OpenCode free usage exceeded. Please check your subscription or usage limits.",
@@ -228,7 +230,7 @@ export class ExternalDelegate {
           }
           return {
             success: false,
-            error: `Invalid result response: ${messageText.substring(0, 100)}`,
+            error: `Invalid result response: ${text.substring(0, 100)}`,
           };
         }
         
