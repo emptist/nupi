@@ -46,7 +46,9 @@ const DEFAULT_OPENCODE_AGENT = {
   },
 };
 
-const LOCAL_TASK_WHITELIST = [
+const LOCAL_TASK_WHITELIST: string[] = [];
+
+const STRONG_MODEL_WHITELIST = [
   'pwd',
   'echo',
   'whoami',
@@ -62,7 +64,8 @@ const RETRYABLE_ERRORS = [
 
 export function isLocalTask(task: string): boolean {
   const taskLower = task.toLowerCase().trim();
-  return LOCAL_TASK_WHITELIST.some(local => 
+  const whitelist = isSelfModelStrong() ? STRONG_MODEL_WHITELIST : LOCAL_TASK_WHITELIST;
+  return whitelist.some(local => 
     taskLower === local.toLowerCase()
   );
 }

@@ -253,6 +253,7 @@ export default function nezhaAutoWork(pi: ExtensionAPI): void {
 
       // Check if task requires external model (OpenCode)
       const useExternal = shouldUseExternal(taskDesc);
+      console.log(`[NuPI] Task: "${work.title.substring(0, 50)}" → ${useExternal ? "delegate to OpenCode" : "local model"}`);
       if (useExternal) {
         console.log("[NuPI] Actually delegating to OpenCode...");
         try {
