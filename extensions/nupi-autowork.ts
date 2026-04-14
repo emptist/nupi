@@ -81,20 +81,13 @@ async function fetchWorkFromNezha(): Promise<WorkItem | null> {
   }
 }
 
-const NEZHA_DIR =
-  process.env.NEZHA_DIR ||
-  (process.env.HOME ? `${process.env.HOME}/gits/hub/tools_ai/nezha` : null) ||
-  "/Users/jk/gits/hub/tools_ai/nezha";
+const NEZHA_DIR = process.env.NEZHA_DIR || "nezha";
 
 async function startNezha(): Promise<boolean> {
   console.log("[NuPI] Starting Nezha...");
   try {
     const { spawn } = await import("child_process");
-    const child = spawn("node", ["./dist/cli/index.js", "start"], {
-      cwd: NEZHA_DIR,
-      detached: true,
-      stdio: "ignore",
-    });
+    const child = spawn("nezha", ["start"], {});
     child.unref();
     console.log("[NuPI] Nezha started.");
     return true;
