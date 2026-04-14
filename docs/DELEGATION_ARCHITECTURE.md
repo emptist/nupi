@@ -4,11 +4,11 @@
 
 The system is built on a **three-metal alloy** metaphor:
 
-| Layer | Component | Metal | Role |
-|-------|-----------|-------|------|
-| **Service** | Nezha | Base metal | PostgreSQL + tasks + memory + broadcasts + issues |
-| **Execution** | NuPI | Alloy (Pi + Nezha) | Local AI worker with code tools (read/edit/write/bash) |
-| **Orchestration** | Piano | Triple alloy (OpenCode + Pi + Nezha) | Task routing + OpenCode as "engine" |
+| Layer             | Component | Metal                                | Role                                                   |
+| ----------------- | --------- | ------------------------------------ | ------------------------------------------------------ |
+| **Service**       | Nezha     | Base metal                           | PostgreSQL + tasks + memory + broadcasts + issues      |
+| **Execution**     | NuPI      | Alloy (Pi + Nezha)                   | Local AI worker with code tools (read/edit/write/bash) |
+| **Orchestration** | Piano     | Triple alloy (OpenCode + Pi + Nezha) | Task routing + OpenCode as "engine"                    |
 
 ## 2. The Two Work Modes
 
@@ -27,7 +27,7 @@ There are **three separate delegation decision points** in the codebase, each wi
 
 ```typescript
 export function shouldUseExternal(task: string): boolean {
-  if (process.env.NUPI_FORCE_LOCAL === 'true') return false;
+  if (process.env.NUPI_FORCE_LOCAL === "true") return false;
   return !isLocalTask(task);
 }
 ```
@@ -43,6 +43,7 @@ pi (level 1) < internal (level 2) < opencode (level 3) < human (level 4)
 ```
 
 Routing logic:
+
 1. **Explicit delegation** → honor it
 2. **High priority (≥50)** → always OpenCode
 3. **Simple Pi tasks** (remind/check/plan/simple/review/list) → Pi
@@ -83,21 +84,14 @@ TaskRouter.route() → TaskCoordinator.execute() → OpenCodeSessionManager
 
 Key consideration: `waitForCompletion()` has a **fake completion detector** — it checks if `additions > 0 || deletions > 0` and throws an error if the AI claims done but made no actual code changes. Defense against AI "declaring done" without doing real work.
 
-### Path 2: NuPI's `ExternalDelegate` (NuPI-driven)
+### Path 2: NuPI's CLI Approach (NuPI-driven) - DEPRECATED
 
-Used by `nupi-autowork.ts`:
+> **IMPORTANT (2026-04-14)**: ExternalDelegate has been removed!
+> NuPI now uses CLI: `exec('nezha tasks')` instead of HTTP delegation.
 
-```
-shouldUseExternal() → ExternalDelegate.delegate() → doSingleDelegate()
-  1. Create session (POST /session)
-  2. Send message (POST /session/:id/message) — streaming
-  3. Read streaming response (collects all chunks, parses as JSON)
-  4. Extract output from response parts
-```
+The old ExternalDelegate approach that tried to parse streaming response as JSON is now deleted.
 
-Key consideration: This path tries to **parse the streaming response as a single JSON object** after collecting all chunks, which is the source of the timeout error. It lacks the polling/completion verification that Path 1 has.
-
-## 5. The ExternalAgentServer — A Third Approach
+## 5. The ExternalAgentServer — Piano's Approach
 
 `piano/src/services/ExternalAgentServer.ts` exposes OpenCode as an HTTP agent server with named agents (scout/planner/worker). It:
 
@@ -113,7 +107,7 @@ Designed for the **Pi subagent chain pattern** (scout → planner → worker) fr
 Nezha serves as the **shared backbone** for both Piano and NuPI:
 
 - **PostgreSQL database**: Single source of truth for tasks, issues, memory, broadcasts
-- **HTTP API** (port 5999): Both Piano and NuPI query tasks/issues via REST
+- **CLI**: NuPI/Piano use `exec('nezha tasks')` instead of HTTP API
 - **HeartbeatService**: Base class that Piano extends with routing logic
 - **OpenCodeReminderService**: Periodically sends status summaries to OpenCode, nudging it to take action on pending tasks/issues — the "secretary" pattern
 - **Scheduler**: Core task scheduling with retry, stuck-task detection, and event bus
@@ -126,11 +120,13 @@ Both Piano and NuPI have Pi extensions that form the runtime glue:
 
 ### nupi-autowork.ts
 
-- On session start: ensures Nezha API is running, starts it if needed
-- Periodic work check (every 2 min): fetches pending tasks from Nezha
-- For each work item: checks `shouldUseExternal()` → delegates to OpenCode or handles locally
-- Registers Pi commands: `nupi-status`, `nupi-work`, `nupi-share`, `nupi-mode`
-- **Tool parameter normalization**: Intercepts `tool_call` events to fix common parameter mistakes (filePath→path, oldString→edits array, tilde expansion)
+> **IMPORTANT (2026-04-14)**: Now uses CLI instead of HTTP!
+
+- On session start: checks Nezha via `exec('nezha status')`
+- Periodic work check (every 2 min): fetches pending tasks via `exec('nezha tasks')`
+- For each work item: processes locally, never delegates to OpenCode directly
+- Registers Pi commands: `nupi-tasks`, `nupi-learn`, `nupi-reflect`
+- **Tool parameter normalization**: Intercepts `tool_call` events to fix common parameter mistakes
 
 ### piano-autowork.ts
 
@@ -149,16 +145,20 @@ Both Piano and NuPI have Pi extensions that form the runtime glue:
 
 4. **Dual delegation is redundant and problematic**: Both Piano (via TaskCoordinator) and NuPI (via ExternalDelegate) can delegate to OpenCode independently. This creates confusion about who owns the delegation responsibility. The role-reversal doc explicitly calls this out.
 
-5. **The streaming vs polling tension**: Piano's path uses polling (`waitForCompletion`), while NuPI's path tries to consume the streaming response directly. The polling approach is more robust but slower; the streaming approach is the source of the timeout bug.
+5. **The streaming vs polling tension**: Piano's path uses polling (`waitForCompletion`), while old ExternalDelegate tried streaming. This was the source of the timeout bug - now fixed by using CLI.
 
 6. **The "motorcycle vs bicycle" metaphor**: This isn't just cute — it's the core product decision. Piano MUST have OpenCode (it's the engine). NuPI doesn't need it (it's self-powered). Users choose which vehicle to ride.
 
 7. **The underutilization problem**: The role-reversal doc identifies that NuPI's extensions (nupi-tools, nupi-autowork) are not leveraged by Piano. Piano treats Pi as a "simple text task" executor when it actually has full code manipulation capabilities through NuPI.
 
-8. **The env var escape hatches**: `NUPI_FORCE_LOCAL`, `NUPI_SELF_MODEL_STRONG`, `NUPI_MODE`, `PIANO_DELEGATE_ALL` — these provide runtime configuration for switching between standalone and external modes without code changes.
+8. **The env var escape hatches**: `NUPI_FORCE_LOCAL`, `NUPI_SELF_MODEL_STRONG`, `NUPI_MODE` — these provide runtime configuration for switching between standalone and external modes without code changes.
 
-## 9. Known Issues
+## 9. Architecture Rules (2026-04-14)
 
-- **Timeout in ExternalDelegate**: NuPI's `doSingleDelegate` tries to read the entire streaming response as JSON, which times out with OpenCode's chunked transfer encoding. Fix: use `prompt_async` + polling (as documented in GitHub issue).
-- **OpenCode auth workaround**: Piano starts OpenCode with empty auth env vars (`OPENCODE_SERVER_USERNAME= OPENCODE_SERVER_PASSWORD=`) because normal startup fails with authentication issues.
-- **Free tier rate limits**: OpenCode's Big Pickle model has free tier limitations causing "Free usage exceeded" errors during delegation.
+- **MCP only for OpenCode** - Nezha/NuPI/Piano use CLI instead
+- **CLI first**: Use `exec('nezha tasks')` not HTTP
+- **NuPI never directly calls OpenCode**: External mode → task queue → Piano → OpenCode
+
+## 10. Removed
+
+- ExternalDelegate class (deleted 2026-04-14) - replaced with CLI calls
