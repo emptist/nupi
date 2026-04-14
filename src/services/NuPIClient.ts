@@ -1,6 +1,5 @@
 import { logger } from "nezha";
 
-const DEFAULT_BASE_URL = "http://127.0.0.1:5999";
 const REQUEST_TIMEOUT_MS = 10000;
 
 export interface TaskData {
@@ -44,7 +43,8 @@ export class NuPIClient {
   private baseUrl: string;
 
   constructor(baseUrl?: string) {
-    this.baseUrl = baseUrl || process.env.NUPI_URL || DEFAULT_BASE_URL;
+    // NOTE: NuPIClient now expects explicit baseUrl or use CLI instead!
+    this.baseUrl = baseUrl || "";
   }
 
   private async request<T>(

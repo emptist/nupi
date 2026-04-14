@@ -6,20 +6,15 @@
  * 2. Prompting AI to check for work when idle
  * 3. Proactively finding work without user intervention
  * 4. Using Pi agent-loop for real continuous work
+ *
+ * IMPORTANT (2026-04-14): Uses CLI instead of HTTP for Nezha communication!
  */
 
-import {
-  isLocalTask,
-  shouldUseExternal,
-  isSelfModelStrong,
-  createExternalDelegate,
-} from "@nezha/nupi";
+import { isLocalTask, isSelfModelStrong } from "@nezha/nupi";
 
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { getNuPIClient } from "@nezha/nupi";
-
-const NEZHA_API_PORT = 5999;
-const NEZHA_API_HOST = "localhost";
+import { execSync } from "child_process";
 
 interface WorkItem {
   type: "task" | "issue" | "broadcast";
@@ -32,13 +27,8 @@ interface WorkItem {
 
 async function isNezhaApiRunning(): Promise<boolean> {
   try {
-    const res = await fetch(
-      `http://${NEZHA_API_HOST}:${NEZHA_API_PORT}/health`,
-      {
-        signal: AbortSignal.timeout(2000),
-      },
-    );
-    return res.ok;
+    execSync("nezha status", { timeout: 2000 });
+    return true;
   } catch {
     return false;
   }
@@ -46,49 +36,42 @@ async function isNezhaApiRunning(): Promise<boolean> {
 
 async function fetchWorkFromNezha(): Promise<WorkItem | null> {
   try {
-    const res = await fetch(
-      `http://${NEZHA_API_HOST}:${NEZHA_API_PORT}/tasks?status=PENDING&limit=1`,
-      {
-        signal: AbortSignal.timeout(5000),
-      },
-    );
-    if (res.ok) {
-      const data = (await res.json()) as { rows?: WorkItem[] };
-      if (data.rows && data.rows.length > 0) {
-        return { type: "task", ...data.rows[0] };
+    const tasksOutput = execSync("nezha tasks --status PENDING --limit 1", {
+      timeout: 5000,
+      encoding: "utf-8",
+    });
+    if (tasksOutput && !tasksOutput.includes("no tasks")) {
+      const lines = tasksOutput.trim().split("\n");
+      if (lines.length > 1) {
+        const taskLine = lines[1];
+        const match = taskLine.match(/^([a-f0-9-]+)\s+(.+)\s+\[(\w+)\]/);
+        if (match) {
+          return {
+            type: "task",
+            id: match[1],
+            title: match[2],
+            status: match[3],
+          };
+        }
       }
     }
 
-    const issueRes = await fetch(
-      `http://${NEZHA_API_HOST}:${NEZHA_API_PORT}/issues?limit=3`,
-      {
-        signal: AbortSignal.timeout(5000),
-      },
-    );
-    if (issueRes.ok) {
-      const issueData = (await issueRes.json()) as { rows?: WorkItem[] };
-      if (issueData.rows && issueData.rows.length > 0) {
-        const highPriority = issueData.rows.find(
-          (i) => i.severity === "high" || i.severity === "critical",
-        );
-        return highPriority
-          ? { type: "issue", ...highPriority }
-          : { type: "issue", ...issueData.rows[0] };
-      }
-    }
-
-    const broadcastRes = await fetch(
-      `http://${NEZHA_API_HOST}:${NEZHA_API_PORT}/broadcast/5`,
-      {
-        signal: AbortSignal.timeout(5000),
-      },
-    );
-    if (broadcastRes.ok) {
-      const broadcastData = (await broadcastRes.json()) as {
-        rows?: WorkItem[];
-      };
-      if (broadcastData.rows && broadcastData.rows.length > 0) {
-        return { type: "broadcast", ...broadcastData.rows[0] };
+    const issuesOutput = execSync("nezha issue-list --limit 3", {
+      timeout: 5000,
+      encoding: "utf-8",
+    });
+    if (issuesOutput && !issuesOutput.includes("no issues")) {
+      const lines = issuesOutput.trim().split("\n");
+      if (lines.length > 1) {
+        const issueLine = lines[1];
+        const match = issueLine.match(/^([a-f0-9-]+)\s+(.+)\s+\[(\w+)\]/);
+        if (match) {
+          return {
+            type: "issue",
+            id: match[1],
+            title: match[2],
+          };
+        }
       }
     }
 
@@ -267,50 +250,23 @@ When idle, automatically:
 ### ALWAYS find the next thing to do.
 ### Work autonomously for 8 hours if needed.
 ### Use nupi-share to communicate with other AIs when needed.
+
+**IMPORTANT**: NuPI NEVER delegates directly to OpenCode!
+External mode means: create task in DB → Piano coordinates → OpenCode executes
 `;
 
 export default function nezhaAutoWork(pi: ExtensionAPI): void {
   let workCheckInterval: NodeJS.Timeout | null = null;
   const WORK_CHECK_INTERVAL_MS = 2 * 60 * 1000;
-  let externalDelegate: ReturnType<typeof createExternalDelegate> | null = null;
 
   async function checkAndDeliverWork(): Promise<void> {
     const work = await fetchWorkFromNezha();
     if (work) {
       const taskDesc = `${work.title} ${work.description || ""}`;
 
-      // Check if task requires external model (OpenCode)
-      const useExternal = shouldUseExternal(taskDesc);
-      console.log(`[NuPI] Task: "${work.title.substring(0, 50)}" → ${useExternal ? "delegate to OpenCode" : "local model"}`);
-      if (useExternal) {
-        console.log("[NuPI] Actually delegating to OpenCode...");
-        try {
-          if (!externalDelegate) {
-            externalDelegate = createExternalDelegate({
-              mode: "external",
-              timeout: 300000, // 5 min
-              agents: {
-                opencode: {
-                  name: "opencode",
-                  url: "http://127.0.0.1:5111",
-                },
-              },
-            });
-          }
-          const result = await externalDelegate.delegate({
-            mode: "single",
-            agent: "opencode",
-            task: taskDesc,
-          });
-          console.log(
-            "[NuPI] External delegation result:",
-            result.success ? "SUCCESS" : result.error,
-          );
-          return;
-        } catch (e) {
-          console.log("[NuPI] External delegation error:", e);
-        }
-      }
+      console.log(
+        `[NuPI] Got work: "${work.title.substring(0, 50)}" → local model`,
+      );
 
       let message = "";
       switch (work.type) {
@@ -341,10 +297,15 @@ export default function nezhaAutoWork(pi: ExtensionAPI): void {
         ? "🔗 External (OpenCode)"
         : "💻 Standalone (NuPI own strong model)";
       pi.sendUserMessage(`📊 NuPI Mode: ${mode}`, { deliverAs: "steer" });
-      pi.sendUserMessage("Use /nupi-mode to check/switch", { deliverAs: "steer" });
+      pi.sendUserMessage("Use /nupi-mode to check/switch", {
+        deliverAs: "steer",
+      });
       pi.sendUserMessage(AUTO_WORK_PROMPT, { deliverAs: "steer" });
     } else {
-      pi.sendUserMessage("📊 NuPI Mode: 🔗 Delegate-only (weak local model → OpenCode)", { deliverAs: "steer" });
+      pi.sendUserMessage(
+        "📊 NuPI Mode: 🔗 Delegate-only (weak local model → OpenCode)",
+        { deliverAs: "steer" },
+      );
       pi.sendUserMessage(DELEGATE_ONLY_PROMPT, { deliverAs: "steer" });
     }
 

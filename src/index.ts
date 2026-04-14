@@ -6,27 +6,20 @@
  * @package @nezha/nupi
  */
 
-import { PiExecutor } from './services/PiExecutor.js';
-import { PiSDKExecutor } from './services/PiSDKExecutor.js';
-import { ExternalDelegate, createExternalDelegate } from './services/ExternalDelegate.js';
-export { getNuPIClient, NuPIClient } from './services/NuPIClient.js';
+import { PiExecutor } from "./services/PiExecutor.js";
+import { PiSDKExecutor } from "./services/PiSDKExecutor.js";
+export { getNuPIClient, NuPIClient } from "./services/NuPIClient.js";
 
-export { PiExecutor, type PiTaskResult, type PiConfig } from './services/PiExecutor.js';
-export { PiSDKExecutor } from './services/PiSDKExecutor.js';
-export { ExternalDelegate, createExternalDelegate };
+export {
+  PiExecutor,
+  type PiTaskResult,
+  type PiConfig,
+} from "./services/PiExecutor.js";
+export { PiSDKExecutor } from "./services/PiSDKExecutor.js";
 
 export { LOCAL_TASK_WHITELIST };
 
-export type {
-  WorkMode,
-  ExternalAgentConfig,
-  AgentRegistry,
-  ChainStep,
-  DelegateOptions,
-  DelegateResult,
-  SingleResult,
-  TokenUsage,
-} from './types/external.js';
+export type { WorkMode } from "./types/external.js";
 
 export interface NuPIConfig {
   dbHost: string;
@@ -34,83 +27,51 @@ export interface NuPIConfig {
   dbName: string;
   dbUser: string;
   dbPassword: string;
-  mode?: 'standalone' | 'external';
-  agents?: import('./types/external.js').AgentRegistry;
+  mode?: "standalone" | "external";
 }
-
-const DEFAULT_OPENCODE_AGENT = {
-  opencode: {
-    name: 'opencode',
-    url: 'http://127.0.0.1:5111',
-    tools: ['read', 'write', 'edit', 'bash', 'grep', 'glob', 'find'],
-  },
-};
 
 const LOCAL_TASK_WHITELIST: string[] = [];
 
-const STRONG_MODEL_WHITELIST = [
-  'pwd',
-  'echo',
-  'whoami',
-  'date',
-];
+const STRONG_MODEL_WHITELIST = ["pwd", "echo", "whoami", "date"];
 
 const RETRYABLE_ERRORS = [
-  'must have required property',
-  'must be array',
+  "must have required property",
+  "must be array",
   'must have required property "content"',
-  'Validation failed',
+  "Validation failed",
 ];
 
 export function isLocalTask(task: string): boolean {
   const taskLower = task.toLowerCase().trim();
-  const whitelist = isSelfModelStrong() ? STRONG_MODEL_WHITELIST : LOCAL_TASK_WHITELIST;
-  return whitelist.some(local => 
-    taskLower === local.toLowerCase()
-  );
+  const whitelist = isSelfModelStrong()
+    ? STRONG_MODEL_WHITELIST
+    : LOCAL_TASK_WHITELIST;
+  return whitelist.some((local) => taskLower === local.toLowerCase());
 }
 
 export function isRetryableError(error: string): boolean {
   const errorLower = error.toLowerCase();
-  return RETRYABLE_ERRORS.some(e => errorLower.includes(e.toLowerCase()));
-}
-
-export function shouldUseExternal(task: string): boolean {
-  if (process.env.NUPI_FORCE_LOCAL === 'true') return false;
-  return !isLocalTask(task);
+  return RETRYABLE_ERRORS.some((e) => errorLower.includes(e.toLowerCase()));
 }
 
 export function isSelfModelStrong(): boolean {
-  return process.env.NUPI_SELF_MODEL_STRONG === 'true';
+  return process.env.NUPI_SELF_MODEL_STRONG === "true";
 }
 
-export function getNuPIStatus(): { mode: string; selfModelStrong: boolean; hasExternal: boolean } {
+export function getNuPIStatus(): {
+  mode: string;
+  selfModelStrong: boolean;
+} {
   return {
-    mode: process.env.NUPI_MODE || 'standalone',
+    mode: process.env.NUPI_MODE || "standalone",
     selfModelStrong: isSelfModelStrong(),
-    hasExternal: process.env.NUPI_EXTERNAL_URL !== undefined,
   };
 }
 
 export function createNuPI(config: NuPIConfig) {
-  const agents = config.mode === 'external' 
-    ? { ...DEFAULT_OPENCODE_AGENT, ...config.agents }
-    : config.agents;
-    
-  const externalDelegate = config.mode === 'external' && agents
-    ? createExternalDelegate({ mode: config.mode, agents })
-    : null;
-
   return {
     config,
     PiExecutor,
     PiSDKExecutor,
-    externalDelegate,
-    async delegate(options: import('./types/external.js').DelegateOptions) {
-      if (!externalDelegate) {
-        return { success: false, error: 'External mode not configured' };
-      }
-      return externalDelegate.delegate(options);
-    },
   };
 }
