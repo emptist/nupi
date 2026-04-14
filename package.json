@@ -22,7 +22,13 @@
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "start": "node bin/nupi",
+    "piano": "node bin/nupi"
+  },
+  "bin": {
+    "nupi": "./bin/nupi",
+    "piano": "./bin/nupi"
   },
   "keywords": [
     "nezha",
