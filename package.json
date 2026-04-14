@@ -1,7 +1,7 @@
 {
   "name": "@nezha/nupi",
   "version": "0.1.0",
-  "description": "NuPI - Pi execution subsystem for Nezha AI",
+  "description": "NuPI = Nezha (core) + Pi (local executor). 独立的本地AI执行器,不需要OpenCode",
   "type": "module",
   "main": "./dist/index.js",
   "types": "dist/index.d.ts",
@@ -23,12 +23,10 @@
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "start": "node bin/nupi",
-    "piano": "node bin/nupi"
+    "start": "node bin/nupi"
   },
   "bin": {
-    "nupi": "./bin/nupi",
-    "piano": "./bin/nupi"
+    "nupi": "./bin/nupi"
   },
   "keywords": [
     "nezha",
