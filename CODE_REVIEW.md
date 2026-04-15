@@ -1,172 +1,193 @@
 # NuPI Code Review
 
-**Date**: 2026-04-02  
-**Project**: NuPI = Nezha united with PI (Standalone with npm link to nezha)
+**Date**: 2026-04-15
+**Project**: NuPI = Nezha united with PI (Standalone local AI executor)
 
 ---
 
-## Project Overview
-
-**NuPI** = Nezha united with PI - Standalone AI collaboration system with npm link to `nezha`.
-
-Architecture: Pi (TUI frontend) + Nezha (backend services/PostgreSQL) = 二合一
-
----
-
-## Status
+## Status Summary
 
 | Check | Status |
 |-------|--------|
-| npm link to nezha | ✅ Linked correctly |
-| TypeScript typecheck | ✅ Passes |
-| Build | ✅ Works |
-| vitest installed | ✅ Added |
-| .gitignore updated | ✅ Fixed |
+| TypeScript compiles | ✅ Passes |
+| vitest configured | ✅ Yes |
+| Tests exist | ❌ No test files |
+| package-lock.json in sync | ❌ Contains stale MCP references |
+| Dead code | ⚠️ ExternalDelegate.js orphaned |
 
 ---
 
-## Issues Found & Fixed
+## What's Working Well
 
-### ✅ Fixed
-
-| # | Issue | Location | Status |
-|---|-------|----------|--------|
-| 1 | `vitest` not in devDependencies | package.json | ✅ Fixed |
-| 2 | `dist/` not in .gitignore | .gitignore | ✅ Fixed |
-| 3 | `.nezha/` not in .gitignore | .gitignore | ✅ Fixed |
-| 4 | `.tmp/` not in .gitignore | .gitignore | ✅ Fixed |
-| 5 | `extensions/trae/skill.ts` empty | extensions/trae/skill.ts | ✅ Fixed |
-| 6 | Command naming inconsistency (nezha-* vs nupi-*) | extensions/ | ✅ Fixed |
-| 7 | Outdated path `~/gits/hub/nezha/nupi` | docs/DEVELOPER.md | ✅ Fixed |
-| 8 | Duplicate docs/README.md | docs/ | ✅ Fixed |
-| 9 | Pi extension files in `~/.pi/agent/extensions/` outdated | ~/.pi/agent/ | ✅ Fixed |
-
-### 🔴 Still Open
-
-| # | Issue | Location | Severity |
-|---|-------|----------|----------|
-| 1 | CLI binaries missing shebang `#!` | nezha src/cli/index.ts | Critical |
-
-### 🟡 Medium Priority
-
-| # | Issue | Location |
-|---|-------|----------|
-| 1 | `src/index.ts` - `createNuPI()` is TODO only | src/index.ts |
-| 2 | API keys exposed in `~/.pi/agent/models.json` | ~/.pi/agent/models.json |
+1. **Clean Architecture** - Good separation between `NuPIClient` (data), `extension.ts` (registerTool pattern), and `tools.ts` (defineTool pattern)
+2. **Type Safety** - Using TypeBox for runtime validation with `Type.Object({})`
+3. **Singleton Pattern** - `getNuPIClient()` properly implements lazy singleton
+4. **Error Handling** - Consistent error format in tools with `content` + `details` structure
+5. **ESM Modules** - Properly using `.js` extensions in imports for ESM compliance
 
 ---
 
-## Documentation Cleanup Completed
+## 🔴 Critical Issues
 
-| File | Change |
-|------|--------|
-| `.memory/MEMORY.md` | Updated with clear AI identity, unified command names |
-| `AGENTS.NuPI.md` | Added collaboration guidelines, cross-AI communication |
-| `README.md` | Fixed command names (nupi-*), updated paths |
-| `docs/DEVELOPER.md` | Fixed outdated path |
-| `extensions/nezha-*.ts` | Renamed to `nupi-*.ts` |
-| `docs/README.md` | Deleted (duplicate) |
+### 1. Orphaned `pi` config in package.json
 
----
-
-## Pi Extension Files (Two Locations)
-
-Extensions are in **two locations** - must sync both:
-
-| Location | Purpose |
-|----------|---------|
-| `/Users/jk/gits/hub/tools_ai/nupi/extensions/` | Source code (git tracked) |
-| `~/.pi/agent/extensions/` | Runtime (deployed) |
-
-### Files in `~/.pi/agent/extensions/`:
-
-```
-nupi-tools.ts       # ✅ Fixed function name
-nupi-autowork.ts    # ✅ Fixed function name
-AGENTS.md           # ✅ Updated
-README.md           # ✅ Updated
+```json
+"pi": {
+  "extensions": [
+    "./extensions/nupi-tools.ts",
+    "./extensions/nupi-autowork.ts"
+  ]
+}
 ```
 
----
+These extension files don't exist. The actual extension is at `./src/services/extension.js` after build.
 
-## Code Quality
-
-### ✅ Strengths
-- Clean separation: `services/`, `extensions/`, `skills/`
-- Two execution paths: CLI (`PiExecutor`) and SDK (`PiSDKExecutor`)
-- Extensions use direct pg queries - no MCP dependency
-- Good TypeScript typing with interfaces
-
-### ⚠️ Improvements Needed
-- Implement `createNuPI()` in `src/index.ts`
-- Complete `extensions/trae/skill.ts` or remove the directory
-- Add tests for core services
+**Action**: Remove `pi` config from package.json or update paths.
 
 ---
 
-## Dependencies
+### 2. Stale `package-lock.json`
 
-| Package | Version | Type |
-|---------|---------|------|
-| nezha | ^0.1.0 | dependency |
-| pg | ^8.11.0 | dependency |
-| @mariozechner/pi-coding-agent | >=0.63.0 | peerDependency |
-| vitest | ✅ installed | devDependency |
+Contains MCP references that were removed from `package.json`.
+
+**Action**: Run `rm package-lock.json && npm install`
 
 ---
 
-## File Structure (Current)
+### 3. Dead Code: `ExternalDelegate.js`
 
+File `/Users/jk/gits/hub/tools_ai/nupi/src/services/ExternalDelegate.js` exists but is never imported anywhere.
+
+**Action**: Either delete it or import/use it.
+
+---
+
+## 🟡 Medium Priority Issues
+
+### 4. No Tests
+
+Vitest is configured but no test files exist (`*.test.ts` or `*.spec.ts`).
+
+**Action**: Add tests for:
+- `NuPIClient` CRUD operations
+- Helper functions (`isLocalTask`, `isRetryableError`)
+
+---
+
+### 5. Unused Parameter
+
+```typescript
+async getIssues(_options?: { status?: string; limit?: number }): Promise<{ rows: any[] }> {
+  return { rows: [] };  // _options is never used
+}
 ```
-nupi/
-├── src/
-│   ├── index.ts                    # Main entry (TODO: implement createNuPI)
-│   ├── nezha-blind-loop.ts         # Periodic task checker
-│   └── services/
-│       ├── PiExecutor.ts           # CLI-based executor
-│       ├── PiSDKExecutor.ts       # SDK-based executor
-│       ├── TraeSkillSyncService.ts # Sync skills to Trae
-│       └── TraeAutoRecoveryService.ts # Auto-recovery for failed tasks
-├── extensions/
-│   ├── nupi-tools.ts              # ✅ Renamed from nezha-tools.ts
-│   ├── nupi-autowork.ts          # ✅ Renamed from nezha-autowork.ts
-│   └── trae/
-│       └── skill.ts               # ✅ Fixed (placeholder)
-├── skills/
-│   └── nupi-abc.md               # AI knowledge base
-├── .memory/
-│   └── MEMORY.md                 # AI identity and knowledge
-├── docs/
-│   └── DEVELOPER.md              # ✅ Fixed path
-├── package.json
-└── tsconfig.json
+
+**Action**: Remove unused parameter or implement the function.
+
+---
+
+### 6. Missing Error Logging
+
+Database errors in `NuPIClient` are silently caught. The `logger` is imported from `nezha` but never used.
+
+**Action**: Add logging in catch blocks:
+```typescript
+catch (e) {
+  logger.error("Failed to get tasks", e);
+  // ...
+}
 ```
 
 ---
 
-## Recommendations
+### 7. Inconsistent Tool Parameter Naming
 
-1. **Immediate**: Fix CLI shebang in nezha (create issue for nezha AI)
-2. **Short-term**: Implement `createNuPI()` core functionality
-3. **Medium-term**: Complete or remove `trae/skill.ts`
-4. **Long-term**: Consider deployment automation for Pi extensions
+- `extension.ts` uses `params` object
+- `tools.ts` uses `_toolCallId` + `params`
+
+**Action**: Standardize on one pattern.
 
 ---
 
-## AI Collaboration
+## 🟢 Minor/Low Priority
 
-NuPI communicates with other AIs via shared PostgreSQL:
+### 8. Duplicate Tool Definitions
 
-```bash
-# Check broadcasts
-node ./node_modules/.bin/nezha broadcasts list
+`nezha_status`, `nezha_get_tasks`, `nezha_create_task` are defined in **both** `extension.ts` and `tools.ts`.
 
-# Share updates
-node ./node_modules/.bin/nezha share "message"
+**Action**: Pick one pattern and remove the duplicate.
 
-# Create issues/tasks
-node ./node_modules/.bin/nezha areflect "[ISSUE] title: ..."
+---
 
-# Check tasks
-node ./node_modules/.bin/nezha tasks --status PENDING
+### 9. `declaration: false` vs `types` export mismatch
+
+`package.json` has:
+```json
+"types": "dist/index.d.ts"
 ```
+
+But `tsconfig.json` has:
+```json
+"declaration": false
+```
+
+This means no `.d.ts` files are generated, so the `types` export points to nothing.
+
+**Action**: Either set `declaration: true` in tsconfig.json or remove the `types` export from package.json.
+
+---
+
+### 10. Repository URL mismatch
+
+```json
+"repository": {
+  "url": "git+https://github.com/emptist/nezha.git",
+  "directory": "nupi"
+}
+```
+
+Suggests repo is `nezha` but package name is `@nezha/nupi`.
+
+**Action**: Verify repository is correct.
+
+---
+
+## Recommended Actions (Priority Order)
+
+| Priority | Action | Status |
+|----------|--------|--------|
+| 🔴 High | Remove or fix `pi.extensions` in package.json | |
+| 🔴 High | Regenerate package-lock.json (`rm package-lock.json && npm install`) | |
+| 🔴 High | Delete `ExternalDelegate.js` (dead code) | |
+| 🟡 Med | Add unit tests | |
+| 🟡 Med | Enable `declaration: true` in tsconfig.json | |
+| 🟡 Med | Remove duplicate tool definitions (pick one pattern) | |
+| 🟡 Med | Add logging to NuPIClient catch blocks | |
+| 🟢 Low | Remove unused `getIssues` parameter | |
+| 🟢 Low | Verify repository URL | ✅ Fixed |
+
+---
+
+## File Summary
+
+| File | Lines | Purpose |
+|------|-------|---------|
+| src/index.ts | 59 | Main entry, exports, helper functions |
+| src/services/NuPIClient.ts | 124 | Database operations via nezha |
+| src/services/extension.ts | ~100+ | Pi extension (registerTool pattern) |
+| src/services/tools.ts | 102 | Pi tools array (defineTool pattern) |
+| src/services/ExternalDelegate.js | ~100+ | Compiled JS, never imported - DELETE |
+
+---
+
+## Previous Review (2026-04-02) Issues Status
+
+| # | Issue | Status |
+|---|-------|--------|
+| 1 | `vitest` not in devDependencies | ✅ Fixed |
+| 2 | `dist/` not in .gitignore | ✅ Fixed |
+| 3 | `.nezha/` not in .gitignore | ✅ Fixed |
+| 4 | `.tmp/` not in .gitignore | ✅ Fixed |
+| 5 | Extensions path outdated | ✅ Fixed (now using dist/) |
+| 6 | Duplicate docs/README.md | ✅ Fixed |
+| 7 | CLI binaries missing shebang | ✅ Fixed |
