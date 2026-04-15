@@ -17,7 +17,8 @@ export {
 } from "./services/PiExecutor.js";
 export { PiSDKExecutor } from "./services/PiSDKExecutor.js";
 
-export { LOCAL_TASK_WHITELIST };
+export { default as nupiExtension } from "./services/extension.js";
+export { nupiTools } from "./services/tools.js";
 
 export type { WorkMode } from "./types/external.js";
 
