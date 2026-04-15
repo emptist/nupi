@@ -1,4 +1,4 @@
 #!/bin/bash
-# NuPI = Pi + Nezha tools
+# NuPI = Pi + Nezha hooks
 
-exec pi -e "$(npm root -g)/@nezha/nupi/dist/services/extension.js" "$@"
+exec pi -e "$(npm root -g)/@nezha/nupi/dist/extension.js" "$@"

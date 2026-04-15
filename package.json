@@ -1,20 +1,14 @@
 {
   "name": "@nezha/nupi",
   "version": "0.1.0",
-  "description": "NuPI = Nezha (core) + Pi (local executor). 独立的本地AI执行器,不需要OpenCode",
+  "description": "NuPI = Nezha (core) + Pi (local executor). Hooks bridge between Pi agent and Nezha data layer",
   "type": "module",
   "main": "./dist/index.js",
   "types": "dist/index.d.ts",
-  "pi": {
-    "extensions": [
-      "./extensions/nupi-tools.ts",
-      "./extensions/nupi-autowork.ts"
-    ]
-  },
   "exports": {
     ".": {
       "import": "./dist/index.js",
-      "types": "./dist/index.d.ts",
+      "types": "dist/index.d.ts",
       "default": "./dist/index.js"
     },
     "./package.json": "./package.json"
@@ -36,11 +30,7 @@
   ],
   "author": "emptist",
   "license": "MIT",
-  "dependencies": {
-    "dotenv": "^17.4.1",
-    "nezha": "^0.1.0",
-    "pg": "^8.11.0"
-  },
+  "dependencies": {},
   "peerDependencies": {
     "@mariozechner/pi-coding-agent": ">=0.63.0"
   },
