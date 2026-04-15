@@ -6,21 +6,10 @@
  * @package @nezha/nupi
  */
 
-import { PiExecutor } from "./services/PiExecutor.js";
-import { PiSDKExecutor } from "./services/PiSDKExecutor.js";
 export { getNuPIClient, NuPIClient } from "./services/NuPIClient.js";
-
-export {
-  PiExecutor,
-  type PiTaskResult,
-  type PiConfig,
-} from "./services/PiExecutor.js";
-export { PiSDKExecutor } from "./services/PiSDKExecutor.js";
 
 export { default as nupiExtension } from "./services/extension.js";
 export { nupiTools } from "./services/tools.js";
-
-export type { WorkMode } from "./types/external.js";
 
 export interface NuPIConfig {
   dbHost: string;
@@ -66,13 +55,5 @@ export function getNuPIStatus(): {
   return {
     mode: process.env.NUPI_MODE || "standalone",
     selfModelStrong: isSelfModelStrong(),
-  };
-}
-
-export function createNuPI(config: NuPIConfig) {
-  return {
-    config,
-    PiExecutor,
-    PiSDKExecutor,
   };
 }
