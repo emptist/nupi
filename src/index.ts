@@ -6,4 +6,4 @@
  * @package @nezha/nupi
  */
 
-export { default as nupiExtension } from "./extension.js";
+export { default as nupiExtension, setExternalThinker } from "./extension.js";
