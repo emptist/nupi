@@ -82,11 +82,16 @@ const nupiThinkTool = {
         details: {} as Record<string, unknown>,
       };
     }
+    // Show feedback that delegation is happening
+    const thinkingMsg = "🔄 Delegating to external thinker (Piano/OpenCode)...";
     try {
       const result = await externalThinkCallback(params.question);
       return {
         content: [{ type: "text" as const, text: result }],
-        details: { from_external: true } as Record<string, unknown>,
+        details: { from_external: true, delegated: true } as Record<
+          string,
+          unknown
+        >,
       };
     } catch (e) {
       return {

@@ -1,6 +1,6 @@
 {
   "name": "@nezha/nupi",
-  "version": "0.1.0",
+  "version": "0.5.0",
   "description": "NuPI = Nezha (core) + Pi (local executor). Hooks bridge between Pi agent and Nezha data layer",
   "type": "module",
   "main": "./dist/index.js",
