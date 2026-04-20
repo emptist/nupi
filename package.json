@@ -14,11 +14,10 @@
     "./package.json": "./package.json"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node scripts/replace-hash.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "start": "node bin/nupi",
-    "hash": "bash scripts/write-hash.sh"
+    "start": "node bin/nupi"
   },
   "bin": {
     "nupi": "./bin/nupi"

@@ -2,3 +2,4 @@ node_modules/
 dist/
 .nezha/
 .tmp/
+.git-hash
