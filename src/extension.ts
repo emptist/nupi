@@ -3,11 +3,104 @@ import type {
   BeforeAgentStartEvent,
   ToolResultEvent,
   TurnEndEvent,
+  ToolCallEvent,
 } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { execSync } from "child_process";
 
-const BYSELF = process.env.NUPI_BYSELF !== "false";
+const GIT_HASH = (() => {
+  try {
+    return execSync("git rev-parse --short HEAD", { encoding: "utf-8", cwd: __dirname }).trim();
+  } catch { return "unknown"; }
+})();
+
+let delegateMode = false;
+
+export function setDelegateMode(enabled: boolean) {
+  delegateMode = enabled;
+}
+
+const VERBOSE = process.env.NUPI_VERBOSE === 'true' || process.env.NODE_ENV !== 'production';
+
+if (VERBOSE) {
+  console.log(`[NuPI@${GIT_HASH}] Starting in verbose mode...`);
+}
+
+const LOCAL_TASK_WHITELIST = [
+  'nupi-tasks',
+  'nupi-issues',
+  'nupi-status',
+  'nupi-autonomous',
+  'nezha_get_tasks',
+  'nezha_create_task',
+  'piano_think',
+  'nupi-think',
+  'nupi-autonomous',
+  'git rev-parse',
+  'pwd',
+  'ls',
+  'ls -la',
+  'ls -a',
+  'echo',
+  'whoami',
+  'date',
+  'nupi-mode',
+  'nupi-model',
+  'bash', // Allow bash, but content is checked below
+];
+
+function shouldAutoDelegate(toolName: string, args?: Record<string, unknown>): boolean {
+  const forceLocal = process.env.NUPI_FORCE_LOCAL === 'true';
+  if (forceLocal) return false;
+
+  // Always delegate if delegateMode is false (external thinker mode)
+  if (!delegateMode) return true;
+
+  // Check whitelist for simple tasks
+  const toolLower = toolName.toLowerCase();
+  if (LOCAL_TASK_WHITELIST.some(t => toolLower === t.toLowerCase())) {
+    // For bash, check if it's a simple command
+    if (toolName === 'bash' && args?.command) {
+      const cmd = String(args.command).toLowerCase().trim();
+      const simplePatterns = ['ls', 'pwd', 'whoami', 'date', 'echo', 'git status', 'git diff', 'git log'];
+      if (simplePatterns.some(p => cmd === p || cmd.startsWith(p + ' '))) {
+        return false;
+      }
+      // Complex bash commands should delegate
+      return true;
+    }
+    return false;
+  }
+
+  // Everything else delegates
+  return true;
+}
+
+// Fetch available tools from database for AI education
+function getAvailableTools(): string {
+  try {
+    const result = execSync(`psql -h 127.0.0.1 -U postgres -d nezha -t -c "SELECT string_agg(table_name, ', ') FROM table_documentation WHERE ai_can_modify = true;"`, {
+      encoding: "utf-8",
+      timeout: 5000,
+    });
+    return result.trim() || "tasks, issues, memory, skills, meetings";
+  } catch {
+    return "tasks, issues, memory, skills";
+  }
+}
+
+// Get system prompts from database
+function getSystemPrompts(): string {
+  try {
+    const result = execSync(`psql -h 127.0.0.1 -U postgres -d nezha -t -c "SELECT current_prompt FROM prompt_suggestions WHERE status = 'approved' ORDER BY updated_at DESC LIMIT 1;"`, {
+      encoding: "utf-8",
+      timeout: 5000,
+    });
+    return result.trim() || "";
+  } catch {
+    return "";
+  }
+}
 
 let externalThinkCallback: ((question: string) => Promise<string>) | null =
   null;
@@ -62,8 +155,16 @@ You have access to Nezha coordination layer via NuPI:
 - Issues: 'nezha issue-add <title> [--severity] [--tag]' to create issues
 - View: 'nezha tasks' or 'nezha issue-list' to see existing work
 - Meetings: 'nezha meeting discuss <topic> <description>' for AI discussions
+- Skills: 'nezha skill list', 'nezha skill search <query>' - search for relevant skills
+
+## Available Database Tables
+These tables are available for AI to use and modify:
+- ${getAvailableTools()}
 
 Use these to track progress, create issues for bugs, and collaborate with other AI instances.
+
+## System Prompts (from database)
+${getSystemPrompts() || "No additional system prompts configured."}
 
 ## Autonomous Mode
 When working autonomously:
@@ -74,8 +175,8 @@ When working autonomously:
 
 💡 Pro tip: You can extend this extension with Pi hooks at ~/.pi/agent/extensions/ for custom reminders, automation, or context injection.
 
-## Mode: ${BYSELF ? "Self-sufficient (BYSELF)" : "External Thinker (Piano)"}
-${BYSELF ? "You handle thinking yourself." : "Use 'nupi-think' or 'piano_think' tool to delegate complex reasoning to external thinker."}
+## Mode: ${delegateMode ? "Self-sufficient (delegateMode)" : "External Thinker (Piano)"}
+${delegateMode ? "You handle thinking yourself." : "Use 'nupi-think' or 'piano_think' tool to delegate complex reasoning to external thinker."}
 `.trim();
 
 export function setExternalThinker(
@@ -95,12 +196,12 @@ const nupiThinkTool = {
     }),
   }),
   async execute(_id: string, params: { question: string }) {
-    if (BYSELF) {
+    if (delegateMode) {
       return {
         content: [
           {
             type: "text" as const,
-            text: "NuPI is in self-sufficient mode (BYSELF=true). Handle thinking yourself.",
+            text: "NuPI is in self-sufficient mode (delegateMode=true). Handle thinking yourself.",
           },
         ],
         details: {} as Record<string, unknown>,
@@ -283,5 +384,25 @@ export default function nupiExtension(pi: ExtensionAPI) {
       );
       fileChangeCount = 0;
     }
+  });
+
+  // Auto-delegate complex tasks to Piano/OpenCode
+  pi.on("tool_call", async (event: ToolCallEvent, ctx) => {
+    // Only handle when not delegateMode (external thinker mode)
+    if (delegateMode) return;
+
+    const toolName = event.toolName;
+    const args = event.input as Record<string, unknown> | undefined;
+
+    if (shouldAutoDelegate(toolName, args)) {
+      console.log(`[NuPI Auto-Delegate] ${toolName} → delegating to Piano/OpenCode`);
+
+      return {
+        block: true,
+        reason: `Auto-delegating ${toolName} to external thinker. Use piano_think or nupi-think for complex tasks.`,
+      };
+    }
+
+    console.log(`[NuPI Auto-Delegate] ${toolName} → allowed locally`);
   });
 }
