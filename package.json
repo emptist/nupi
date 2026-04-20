@@ -17,7 +17,8 @@
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "start": "node bin/nupi"
+    "start": "node bin/nupi",
+    "hash": "bash scripts/write-hash.sh"
   },
   "bin": {
     "nupi": "./bin/nupi"

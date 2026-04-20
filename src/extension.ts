@@ -7,11 +7,18 @@ import type {
 } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { execSync } from "child_process";
+import { readFileSync, existsSync } from "fs";
+import { resolve, dirname } from "path";
+import { fileURLToPath } from "url";
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 const GIT_HASH = (() => {
-  try {
-    return execSync("git rev-parse --short HEAD", { encoding: "utf-8", cwd: __dirname }).trim();
-  } catch { return "unknown"; }
+  const hashFile = resolve(__dirname, "../../.git-hash");
+  if (existsSync(hashFile)) {
+    try { return readFileSync(hashFile, "utf-8").trim(); } catch {}
+  }
+  return "unknown";
 })();
 
 let delegateMode = false;
