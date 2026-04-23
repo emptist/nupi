@@ -26,10 +26,18 @@ type DelegationMode =
 let delegation: DelegationMode = { mode: "self-sufficient" };
 
 export function registerThinker(thinker: ExternalThinker): void {
+  const thinkerName = thinker.name || "Unknown";
   delegation = { mode: "delegating", thinker };
+  if (VERBOSE) {
+    console.log(`[NuPI@${GIT_HASH}] 🔌 Thinker slot filled: ${thinkerName} (now delegating)`);
+  }
 }
 
 export function unregisterThinker(): void {
+  if (VERBOSE) {
+    const oldThinker = delegation.mode === "delegating" ? delegation.thinker.name : "none";
+    console.log(`[NuPI@${GIT_HASH}] 🔌 Thinker slot cleared: ${oldThinker} (now self-sufficient)`);
+  }
   delegation = { mode: "self-sufficient" };
 }
 
