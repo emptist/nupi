@@ -229,7 +229,9 @@ const nupiThinkTool = {
       };
     }
     try {
+      console.log(`[NuPI nupi-think] Delegating to external thinker: ${params.question.slice(0, 50)}...`);
       const result = await delegation.thinker.think(params.question);
+      console.log(`[NuPI nupi-think] Got response: ${result.slice(0, 100)}...`);
       return {
         content: [{ type: "text" as const, text: result }],
         details: { delegated: true } as Record<string, unknown>,
@@ -941,10 +943,17 @@ export default function nupiExtension(pi: ExtensionAPI) {
   });
 
   pi.on("tool_call", async (event: ToolCallEvent, ctx) => {
-    if (delegation.mode !== "delegating") return;
-
     const toolName = event.toolName;
     const args = event.input as Record<string, unknown> | undefined;
+    
+    if (delegation.mode === "delegating") {
+      const thinkerName = delegation.thinker.name || "external thinker";
+      console.log(`[NuPI tool_call] ${toolName} → Mode: delegating to ${thinkerName}`);
+    } else {
+      console.log(`[NuPI tool_call] ${toolName} → Mode: self-sufficient`);
+    }
+
+    if (delegation.mode !== "delegating") return;
 
     if (shouldAutoDelegate(toolName, args)) {
       console.log(`[NuPI Auto-Delegate] ${toolName} → delegating to external thinker`);
