@@ -1,15 +1,15 @@
-# NuPI 开发者指南
+# NuPI Developer Guide
 
-## 架构
+## Architecture
 
 ```
 ┌─────────────────────────────────────────────┐
 │                  Pi (TUI)                  │
-│  - 对话界面                                  │
-│  - 工具执行 (bash, read, edit, write)       │
-│  - Skill 加载                               │
+│  - Dialog interface                         │
+│  - Tool execution (bash, read, edit, write) │
+│  - Skill loading                            │
 └──────────────────┬──────────────────────────┘
-                   │ 本地调用
+                   │ Local calls
                    ▼
 ┌─────────────────────────────────────────────┐
 │              PostgreSQL                     │
@@ -19,75 +19,68 @@
 └─────────────────────────────────────────────┘
 ```
 
-## 核心组件
+## Core Components
 
-### 1. Pi 扩展 (`extensions/`)
+### 1. Pi Extension (`src/extension.ts`)
 
-- **nezha-tools.ts**: 直接 SQL 查询 + CLI 命令
-- **nezha-autowork.ts**: 永续工作循环
+- **Hooks**: session_start, tool_result, before_agent_start, turn_end
+- **Thinker slot**: registerThinker/unregisterThinker for delegation mode
+- **Tools**: nupi-think, nupi-tasks, nupi-autonomous
 
 ### 2. Skills (`skills/`)
 
-- **nupi-abc.md**: AI 必读知识
+- **nupi-abc.md**: AI required reading
 
-### 3. 数据库表
+### 3. Database Tables
 
-关键表：
+Key tables:
 
-| 表名                | 用途        |
-| ------------------- | ----------- |
-| tasks               | 任务队列    |
-| issues              | 问题跟踪    |
-| memory              | 长期记忆    |
-| reviews             | 代码评审    |
-| table_documentation | AI 工具索引 |
+| Table                | Purpose        |
+| ------------------- | -------------- |
+| tasks               | Task queue     |
+| issues              | Issue tracking |
+| memory              | Long-term memory |
+| reviews             | Code reviews   |
+| table_documentation | AI tool index  |
 
-## 开发
+## Development
 
 ```bash
-# 进入目录
+# Enter directory
 cd ~/gits/hub/tools_ai/nupi
 
-# 复制扩展到 Pi
-cp extensions/*.ts ~/.pi/agent/extensions/
+# Build
+npm run build
 
-# 复制 skill
-cp skills/*.md ~/.pi/agent/skills/
-
-# 重启 Pi
+# Type check
+npm run typecheck
 ```
 
-## 数据库操作
+## Thinker Slot API
 
 ```typescript
-// 直接 SQL (推荐)
-import { Client } from 'pg';
+import { registerThinker, unregisterThinker } from "@nezha/nupi";
+import type { ExternalThinker } from "@nezha/nupi";
 
-const client = new Client({
-  host: 'localhost',
-  port: 5432,
-  database: 'nezha',
-  user: 'postgres',
-  password: 'postgres',
-});
+const myThinker: ExternalThinker = {
+  async think(question: string): Promise<string> {
+    return await callStrongModel(question);
+  }
+};
 
-await client.connect();
-const result = await client.query('SELECT * FROM tasks WHERE status = $1', ['PENDING']);
+registerThinker(myThinker);   // NuPI enters delegating mode
+unregisterThinker();          // NuPI returns to self-sufficient mode
 ```
 
-## 发布 npm 包
+## Publishing
 
 ```bash
 cd nupi
 npm publish --access public
 ```
 
-安装：
+Install:
 
 ```bash
 npm install @nezha/nupi
 ```
-
----
-
-_更多技术细节待补充_

@@ -1,47 +1,45 @@
 # NuPI Developer Guide
 
-## 身份声明
+## Identity
 
-**我是 NuPI AI**，不是 nezha！
+**I am NuPI AI**, not nezha!
 
-| 项目 | 职责 |
-|------|------|
-| NuPI | 独立 AI，使用 Pi + 本地 LLM |
-| Nezha | 数据库服务 + API server (port 4099) |
-| Piano | NuPI + OpenCode (任务路由) |
+| Project | Responsibility |
+|---------|---------------|
+| NuPI | Independent AI, uses Pi + local LLM |
+| Nezha | Database service + CLI |
+| Piano | NuPI + OpenCode (task routing) |
 
 ---
 
 ## Architecture
 
 ```
-NuPI ←HTTP API (4099)→ Nezha (PostgreSQL)
+NuPI ←CLI→ Nezha (PostgreSQL)
 ```
 
-- **NuPI**: 执行层，Pi + 本地 LLM (Ollama)
-- **Nezha**: 服务层，API + DB + 任务/记忆/广播
+- **NuPI**: Execution layer, Pi + local LLM (Ollama)
+- **Nezha**: Service layer, CLI + DB + tasks/memory/broadcast
 
-### NuPIClient
+### Thinker Slot
+
+NuPI uses a thinker slot pattern for delegation:
 
 ```typescript
-import { getNuPIClient } from '@nezha/nupi';
+import { nupiExtension, registerThinker, unregisterThinker } from "@nezha/nupi";
+import type { ExternalThinker } from "@nezha/nupi";
 
-const api = getNuPIClient();
+const myThinker: ExternalThinker = {
+  async think(question: string): Promise<string> {
+    return await callStrongModel(question);
+  }
+};
 
-// Tasks
-const task = await api.getPendingTask(1);
-await api.updateTaskStatus(taskId, 'RUNNING');
-
-// Issues
-const issues = await api.getIssues(10);
-
-// Memory
-await api.saveMemory('learned', ['tag']);
-const results = await api.searchMemory('query');
-
-// System
-const status = await api.getSystemStatus();
+registerThinker(myThinker);   // NuPI enters delegating mode
+unregisterThinker();          // NuPI returns to self-sufficient mode
 ```
+
+The mode is derived from the thinker slot — no boolean flag needed.
 
 ---
 
@@ -52,111 +50,70 @@ const status = await api.getSystemStatus();
 - Node.js 20+
 - PostgreSQL (nezha database)
 - Pi (TUI)
-- `npm link nezha`
 
 ### Setup
 
 ```bash
 npm install
-npm link nezha
 npm run build
 ```
 
 ### Development Workflow
 
-1. 修改代码
+1. Modify code
 2. `npm run typecheck`
 3. `npm run build`
-4. 提交 (包含 task ID)
-5. 推送到远程
+4. Commit (include task ID)
+5. Push to remote
 
 ---
 
 ## Using nezha CLI
 
-NuPI 已 npm link nezha，直接使用：
+NuPI uses the nezha CLI directly:
 
 ```bash
-# 查看任务
-node ./node_modules/.bin/nezha tasks
+# View tasks
+nezha tasks
 
-# 查看 issues
-node ./node_modules/.bin/nezha issues list
+# View issues
+nezha issue-list
 
-# 广播
-node ./node_modules/.bin/nezha share "message"
+# Broadcast
+nezha share "message"
 
-# areflect - 保存学习/创建 issue/task
-node ./node_modules/.bin/nezha areflect "[LEARN] insight: ..."
-node ./node_modules/.bin/nezha areflect "[ISSUE] title: ... severity:high"
-node ./node_modules/.bin/nezha areflect "[TASK] title: ... priority:8"
+# Learn - save learning/create issue/task
+nezha learn "[LEARN] insight: ..."
+nezha issue-add "Bug found" --severity high
+nezha task-add "Implement feature X" --priority 8
 
-# 检查待办
-node ./node_modules/.bin/nezha areflect --check
-
-# 查看最近学习
-node ./node_modules/.bin/nezha areflect --learnings
+# Check pending
+nezha tasks --status PENDING
 ```
 
 ---
 
 ## Pi Extensions
 
-### 正确安装方式
+### Correct Installation
 
-**不要手动复制文件到 `~/.pi/agent/extensions/`**！
+**Don't manually copy files to `~/.pi/agent/extensions/`**!
 
-应该用 `pi install` 安装：
+Use `pi install`:
 
 ```bash
-# 1. 在 package.json 添加配置
+# 1. Add config in package.json
 # {
 #   "pi": {
 #     "extensions": ["./extensions/nupi-tools.ts"]
 #   }
 # }
 
-# 2. 安装
+# 2. Install
 pi install ./
 
-# 3. 验证
+# 3. Verify
 pi list
-```
-
-**好处**:
-- Pi 自动管理扩展
-- 版本同步
-- 不污染系统目录
-
-### Commands
-
-| Command | Description |
-|---------|-------------|
-| `/nupi-tasks` | List pending tasks |
-| `/nupi-task-take <id>` | Take a task |
-| `/nupi-task-done <id>` | Complete a task |
-| `/nupi-issues` | List open issues |
-| `/nupi-learn <insight>` | Save learning |
-| `/nupi-search <query>` | Search memory |
-| `/nupi-status` | System status |
-| `/nupi-work` | Autonomous work mode |
-
----
-
-## nupi-autowork v2.1
-
-自动工作循环：
-
-1. 会话启动时检查并确保 Nezha API 运行
-2. 每 2 分钟自动检查任务/issue/broadcast
-3. 主动推送工作给 AI（不需要等人类分配）
-
-```typescript
-// 自动启动 nezha 如果未运行
-await ensureNezhaApiRunning();
-
-// 定期检查工作
-setInterval(checkAndDeliverWork, 2 * 60 * 1000);
 ```
 
 ---
@@ -165,11 +122,9 @@ setInterval(checkAndDeliverWork, 2 * 60 * 1000);
 
 | File | Purpose |
 |------|---------|
-| `src/services/NuPIClient.ts` | HTTP API 客户端 (port 4099) |
-| `src/services/PiExecutor.ts` | 本地 LLM 执行器 |
-| `src/services/PiSDKExecutor.ts` | Pi SDK 执行器 |
-| `extensions/nupi-tools.ts` | Pi 扩展 - 数据库工具 |
-| `extensions/nupi-autowork.ts` | Pi 扩展 - 永续工作循环 |
+| `src/extension.ts` | Pi extension hooks + thinker slot |
+| `src/index.ts` | Public API exports |
+| `bin/nupi.ts` | CLI entry point |
 
 ---
 
@@ -178,63 +133,36 @@ setInterval(checkAndDeliverWork, 2 * 60 * 1000);
 ```bash
 npm run typecheck  # Type check
 npm run build      # Build
-npm run test      # Tests
 ```
-
----
-
-## Git Branch Strategy
-
-- `master` - stable
-- `phase2-nupi-cleanup` - 当前开发分支
-- `fix/*` - bug fixes
-- `feat/*` - new features
 
 ---
 
 ## Cross-AI Collaboration
 
-通过共享数据库协作：
+Collaborate via shared database:
 
 ```bash
-# 广播
+# Broadcast
 nezha share "message"
 
-# 创建 issue/task
-nezha areflect "[ISSUE] title: ..."
+# Create issue/task
+nezha issue-add "Bug found" --severity high
 
-# 保存学习
-nezha areflect "[LEARN] insight: ..."
+# Save learning
+nezha learn "[LEARN] insight: ..."
 ```
-
----
-
-## NuPI 与 Piano 共享
-
-`nupi-tools.ts` 在两个项目使用相同模式：
-
-- **NuPI**: 直接使用 NuPIClient
-- **Piano**: 通过 HTTP API 调用
 
 ---
 
 ## Troubleshooting
 
-### Port 4099 未运行
-
-```bash
-# 启动 Nezha
-cd ~/gits/hub/tools_ai/nezha
-node ./dist/cli/index.js start
-```
-
-### 数据库连接
+### Database Connection
 
 ```bash
 psql -U postgres -d nezha -c "SELECT 1;"
 ```
 
-环境变量：
+Environment variables:
 ```bash
 NEZHA_DB_HOST=localhost
 NEZHA_DB_PORT=5432
@@ -245,8 +173,7 @@ NEZHA_DB_NAME=nezha
 
 ## Important Notes
 
-1. **NuPI is independent** - 不需要 OpenCode 或 MCP
-2. **npm link nezha** - 可直接使用 nezha CLI 和模块
-3. **Sync Pi extensions** - 更新后复制到 `~/.pi/agent/extensions/`
-4. **HTTP API** - 使用 port 4099 与 Nezha 通信
-5. **areflect** - 不需要 MCP，直接用 nezha CLI
+1. **NuPI is independent** - doesn't need OpenCode or MCP
+2. **CLI only** - uses nezha CLI for all persistence
+3. **Thinker slot** - delegation mode is derived from thinker registration, not a boolean flag
+4. **No HTTP API** - NuPI communicates with Nezha via CLI only

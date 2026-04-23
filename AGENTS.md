@@ -68,6 +68,15 @@ You have access to Nezha coordination layer via NuPI:
 - Meetings: 'nezha meeting discuss <topic> <description>' for AI discussions
 ```
 
+### 4. Thinker Slot
+
+NuPI's delegation mode is derived from the thinker slot:
+
+- **No thinker registered** → Self-sufficient mode (AI thinks for itself)
+- **Thinker registered** → Delegating mode (complex tasks routed to external thinker)
+
+The plug IS the mode. Piano registers a thinker via `registerThinker()`, and NuPI automatically enters delegating mode.
+
 ## Working with Nezha
 
 ### Creating Tasks

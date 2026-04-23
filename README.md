@@ -19,19 +19,53 @@ NuPI = Pi (agent loop) + NuPI Extension (hooks)
 
 ## Modes
 
-NuPI supports two working modes controlled by `NUPI_BYSELF` env var:
+NuPI derives its mode from the **thinker slot** — no boolean flag needed:
 
-| Mode                 | NUPI_BYSELF      | Behavior                                         |
-| -------------------- | ---------------- | ------------------------------------------------ |
-| **Self-sufficient**  | `true` (default) | AI handles thinking itself                       |
-| **External Thinker** | `false`          | Delegates complex thinking via `nupi-think` tool |
+| Mode                 | Condition | Behavior                                         |
+| -------------------- | --------- | ------------------------------------------------ |
+| **Self-sufficient**  | No thinker registered | AI handles thinking itself (no auto-delegation) |
+| **External Thinker** | Thinker registered via `registerThinker()` | Auto-delegates complex tasks to external thinker |
+
+The plug IS the mode. You cannot be in delegating mode without a thinker, and you cannot have a thinker without being in delegating mode.
+
+### How Modes Are Set
+
+- **CLI standalone** (`nupi` command): No thinker registered — self-sufficient by default
+- **Embedded in Piano**: Piano calls `registerThinker(thinker)` to plug in its thinking capability
+
+### Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `NUPI_VERBOSE` | When `'true'`, enables verbose logging |
+
+## Thinker Slot API
+
+```typescript
+import { nupiExtension, registerThinker, unregisterThinker } from "@nezha/nupi";
+import type { ExternalThinker } from "@nezha/nupi";
+
+// Define a thinker
+const myThinker: ExternalThinker = {
+  async think(question: string): Promise<string> {
+    // Call your strong model here
+    return await callOpenCode(question);
+  }
+};
+
+// Plug it in — NuPI is now in delegating mode
+registerThinker(myThinker);
+
+// Unplug — NuPI returns to self-sufficient mode
+unregisterThinker();
+```
 
 ## What NuPI Does
 
 - **Hooks**: Bridges Pi events to nezha CLI commands
 - **System Prompt**: Tells AI about available nezha tools + mode
 - **Reminders**: Every 5 turns → commit reminder; after 10+ file edits → docs reminder
-- **External Thinker**: When BYSELF=false, provides `nupi-think` tool for delegation
+- **External Thinker**: When a thinker is registered, provides `nupi-think` tool for delegation
 
 ## How It Works
 
@@ -51,9 +85,6 @@ npm install -g @nezha/nupi
 
 # Run pi with nupi extension (self-sufficient mode)
 nupi
-
-# Run with external thinker (for Piano)
-NUPI_BYSELF=false nupi
 ```
 
 ## NuPI Hooks
@@ -68,11 +99,17 @@ NUPI_BYSELF=false nupi
 
 ## External Thinker Integration
 
-When `NUPI_BYSELF=false`, NuPI provides the `nupi-think` tool:
+When a thinker is registered (delegating mode):
 
-- Delegates complex reasoning to external thinker (e.g., Piano/OpenCode)
-- Works with ACP protocol for OpenCode integration
-- Simple callback mechanism - external thinker sets `setExternalThinker(callback)`
+- Auto-delegates complex tool calls to the external thinker
+- NuPI intercepts tool calls and returns delegation response
+- For explicit delegation, use `nupi-think` tool — calls `thinker.think(question)` directly
+
+When no thinker is registered (self-sufficient mode):
+
+- All tasks handled locally
+- No auto-delegation occurs
+- `nupi-think` tool returns "self-sufficient mode" message
 
 ## System Prompt (injected to AI)
 
@@ -85,8 +122,8 @@ You have access to Nezha coordination layer via NuPI:
 
 💡 Pro tip: You can extend this extension with Pi hooks at ~/.pi/agent/extensions/
 
-## Mode: Self-sufficient (BYSELF) or External Thinker (Piano)
-Use 'nupi-think' tool to delegate complex reasoning when BYSELF=false
+## Mode: Self-sufficient or External Thinker
+When a thinker is registered, use 'nupi-think' tool to delegate complex reasoning.
 ```
 
 ## CLI Only Design
