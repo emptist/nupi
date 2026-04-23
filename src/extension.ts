@@ -6,6 +6,7 @@ import type {
   TurnStartEvent,
   ToolCallEvent,
   ContextEvent,
+  AgentEndEvent,
 } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { execSync } from "child_process";
@@ -165,6 +166,20 @@ async function getSkillsForTool(toolName: string): Promise<{ name: string; instr
     "SELECT name, instructions FROM skills WHERE trigger_phrases @> $1 AND status = 'approved' LIMIT 3",
     [[toolName]]
   );
+}
+
+async function getSkillsForEvent(eventType: string): Promise<{ name: string; instructions: string }[]> {
+  return querySafe<{ name: string; instructions: string }>(
+    "SELECT name, instructions FROM skills WHERE trigger_phrases @> $1 AND status = 'approved' LIMIT 3",
+    [[eventType]]
+  );
+}
+
+async function getNextTask(): Promise<{ id: string; title: string; priority: number } | null> {
+  const row = await queryOne<{ id: string; title: string; priority: number }>(
+    "SELECT id, title, priority FROM tasks WHERE status = 'PENDING' ORDER BY priority DESC LIMIT 1"
+  );
+  return row || null;
 }
 
 function getModeLabel(): string {
@@ -1053,6 +1068,24 @@ When user asks complex questions or asks about planning/architecture/research:
   });
 
   const turnTimings: Map<number, number> = new Map();
+
+  pi.on("agent_end", async (_event: AgentEndEvent, ctx) => {
+    console.log(`[NuPI agent_end] Task completed, checking for next task...`);
+    
+    const nextTask = await getNextTask();
+    if (nextTask) {
+      console.log(`[NuPI agent_end] Next task: [${nextTask.priority}] ${nextTask.title}`);
+      await ctx.ui.notify(
+        `📋 Next task: ${nextTask.title}`,
+        "info"
+      );
+    }
+    
+    const eventSkills = await getSkillsForEvent("agent_end");
+    if (eventSkills.length > 0) {
+      console.log(`[NuPI agent_end] Loaded ${eventSkills.length} skill(s)`);
+    }
+  });
 
   pi.on("turn_start", (event: TurnStartEvent) => {
     turnTimings.set(event.turnIndex, event.timestamp);
