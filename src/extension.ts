@@ -252,11 +252,11 @@ const nupiAgentIdTool = {
   parameters: Type.Object({}),
   async execute() {
     const sessionId = process.env.AGENT_SESSION_ID || "unknown";
-    const result = await queryOne<{ id: string }>(
-      "SELECT agent_id FROM agent_sessions WHERE id = $1",
+    const result = await queryOne<{ id: string; agent_type: string }>(
+      "SELECT id, agent_type FROM agent_sessions WHERE id = $1",
       [sessionId]
     );
-    const agentId = result?.id || sessionId;
+    const agentId = result?.agent_type || sessionId;
     return {
       content: [{ type: "text" as const, text: `Agent ID: ${agentId}` }],
       details: { agentId },
@@ -865,11 +865,11 @@ export default function nupiExtension(pi: ExtensionAPI) {
     
     // Inject agent identity
     const sessionId = process.env.AGENT_SESSION_ID || "unknown";
-    const agentResult = await queryOne<{ id: string }>(
-      "SELECT agent_id FROM agent_sessions WHERE id = $1",
+    const agentResult = await queryOne<{ id: string; agent_type: string }>(
+      "SELECT id, agent_type FROM agent_sessions WHERE id = $1",
       [sessionId]
     );
-    const agentId = agentResult?.id || "unknown";
+    const agentId = agentResult?.agent_type || sessionId;
     systemPrompt += `\n\n## Agent Identity\nYour Agent ID: ${agentId}\n`;
     
     // Inject structured nezha context into prompt
