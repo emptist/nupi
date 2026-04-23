@@ -8,7 +8,7 @@
   "exports": {
     ".": {
       "import": "./dist/index.js",
-      "types": "dist/index.d.ts",
+      "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
     "./package.json": "./package.json"
@@ -17,7 +17,11 @@
     "build": "tsc && node scripts/replace-hash.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "start": "node bin/nupi"
+    "start": "node bin/nupi",
+    "predev": "npm run build",
+    "dev": "rm -rf $(npm root -g)/@nezha/nupi; npm link; echo === STATUS ===; echo Local:; grep GIT_HASH dist/extension.js; echo Global:; grep GIT_HASH $(npm root -g)/@nezha/nupi/dist/extension.js",
+    "prestatus": "test -d dist || npm run build",
+    "status": "echo === STATUS ===; echo Local:; grep GIT_HASH dist/extension.js; echo Global:; grep GIT_HASH $(npm root -g)/@nezha/nupi/dist/extension.js"
   },
   "bin": {
     "nupi": "./bin/nupi"
