@@ -865,6 +865,17 @@ export default function nupiExtension(pi: ExtensionAPI) {
   pi.on("before_agent_start", async (_event: BeforeAgentStartEvent) => {
     let systemPrompt = await buildNezhaPrompt();
     
+    // If thinker slot is filled, inject delegation instruction
+    if (delegation.mode === "delegating") {
+      const thinkerName = delegation.thinker.name || "external thinker";
+      systemPrompt += `\n\n## Delegation Mode Active
+You have access to an external thinker (${thinkerName}). 
+When user asks complex questions or asks about planning/architecture/research:
+- Use 'nupi-think' or 'piano_think' tool to delegate thinking
+- Or return control and let the system delegate automatically
+`;
+    }
+    
     // Inject agent identity
     const sessionId = process.env.AGENT_SESSION_ID || "unknown";
     const agentResult = await queryOne<{ id: string; agent_type: string }>(
