@@ -245,6 +245,25 @@ const nupiThinkTool = {
   },
 };
 
+const nupiAgentIdTool = {
+  name: "nupi-agent-id",
+  label: "NuPI Agent ID",
+  description: "Get current agent identity",
+  parameters: Type.Object({}),
+  async execute() {
+    const sessionId = process.env.AGENT_SESSION_ID || "unknown";
+    const result = await queryOne<{ id: string }>(
+      "SELECT agent_id FROM agent_sessions WHERE id = $1",
+      [sessionId]
+    );
+    const agentId = result?.id || sessionId;
+    return {
+      content: [{ type: "text" as const, text: `Agent ID: ${agentId}` }],
+      details: { agentId },
+    };
+  },
+};
+
 const nupiTasksTool = {
   name: "nupi-tasks",
   label: "NuPI Check Tasks",
@@ -774,6 +793,7 @@ const nupiStatsTool = {
 };
 
 export default function nupiExtension(pi: ExtensionAPI) {
+  pi.registerTool(nupiAgentIdTool);
   pi.registerTool(nupiThinkTool);
   pi.registerTool(nupiTasksTool);
   pi.registerTool(nupiAutonomousTool);
@@ -842,6 +862,15 @@ export default function nupiExtension(pi: ExtensionAPI) {
 
   pi.on("before_agent_start", async (_event: BeforeAgentStartEvent) => {
     let systemPrompt = await buildNezhaPrompt();
+    
+    // Inject agent identity
+    const sessionId = process.env.AGENT_SESSION_ID || "unknown";
+    const agentResult = await queryOne<{ id: string }>(
+      "SELECT agent_id FROM agent_sessions WHERE id = $1",
+      [sessionId]
+    );
+    const agentId = agentResult?.id || "unknown";
+    systemPrompt += `\n\n## Agent Identity\nYour Agent ID: ${agentId}\n`;
     
     // Inject structured nezha context into prompt
     const contextJson = await getNezhaContext();
