@@ -49,24 +49,37 @@ if (VERBOSE) {
 
 const LOCAL_TASK_WHITELIST = [
   'nupi-tasks',
-  'nupi-issues',
+  'nupi-issues', 
   'nupi-status',
   'nupi-autonomous',
+  'nupi-agent-id',
+  'nupi-project',
+  'nupi-visits',
+  'nupi-stats',
+  'nupi-doc-save',
+  'nupi-doc-list',
   'nezha_get_tasks',
   'nezha_create_task',
-  'piano_think',
-  'nupi-think',
-  'git rev-parse',
   'pwd',
   'ls',
   'ls -la',
-  'ls -a',
   'echo',
   'whoami',
   'date',
-  'nupi-mode',
-  'nupi-model',
-  'bash',
+  'cd',
+  'cp',
+  'mv',
+  'rm',
+  'mkdir',
+  'rmdir',
+  'cat',
+  'head',
+  'tail',
+  'grep',
+  'find',
+  'sort',
+  'uniq',
+  'wc',
 ];
 
 function shouldAutoDelegate(toolName: string, args?: Record<string, unknown>): boolean {
@@ -74,17 +87,13 @@ function shouldAutoDelegate(toolName: string, args?: Record<string, unknown>): b
 
   const toolLower = toolName.toLowerCase();
   if (LOCAL_TASK_WHITELIST.some(t => toolLower === t.toLowerCase())) {
-    if (toolName === 'bash' && args?.command) {
-      const cmd = String(args.command).toLowerCase().trim();
-      const simplePatterns = ['ls', 'pwd', 'whoami', 'date', 'echo', 'git status', 'git diff', 'git log'];
-      if (simplePatterns.some(p => cmd === p || cmd.startsWith(p + ' '))) {
-        return false;
-      }
-      return true;
-    }
     return false;
   }
-
+  
+  // Blind delegation: delegate everything else when thinker slot is filled
+  if (VERBOSE) {
+    console.log(`[NuPI Auto-Delegate] ${toolName} → delegated to ${delegation.thinker.name || "external thinker"}`);
+  }
   return true;
 }
 
