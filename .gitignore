@@ -4,4 +4,16 @@ dist/
 .tmp/
 .git-hash
 .env
-.env
+.env.local
+.env.*.local
+*.log
+npm-debug.log*
+.DS_Store
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+coverage/
+.nyc_output/
+*.tsbuildinfo

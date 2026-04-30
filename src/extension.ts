@@ -807,14 +807,112 @@ const nupiStatsTool = {
     
     return {
       content: [{ type: "text" as const, text: stats }],
-      details: {
-        projects: parseInt(projectCount?.count || "0"),
-        visits: parseInt(visitCount?.count || "0"),
-        skills: parseInt(skillCount?.count || "0"),
-        meetings: parseInt(meetingCount?.count || "0"),
-        issues: parseInt(issueCount?.count || "0"),
+      details: { 
+        projectCount: parseInt(projectCount?.count || '0'),
+        visitCount: parseInt(visitCount?.count || '0'),
+        skillCount: parseInt(skillCount?.count || '0'),
+        meetingCount: parseInt(meetingCount?.count || '0'),
+        issueCount: parseInt(issueCount?.count || '0'),
       } as Record<string, unknown>,
     };
+  },
+};
+
+async function getNezhaInnerAI(): Promise<{ provider: string; model: string } | null> {
+  const result = await queryOne<{ provider: string; model: string | null }>(
+    `SELECT provider, model FROM provider_api_keys WHERE status = 'in_use' LIMIT 1`
+  );
+  
+  if (!result) return null;
+  
+  return {
+    provider: result.provider,
+    model: result.model || 'llama3.2:3b',
+  };
+}
+
+async function updatePiSettings(provider: string, model: string): Promise<boolean> {
+  const os = await import('os');
+  const fs = await import('fs');
+  const settingsPath = path.join(os.homedir(), '.pi', 'agent', 'settings.json');
+  
+  try {
+    let settings: any = {};
+    
+    if (fs.existsSync(settingsPath)) {
+      const content = fs.readFileSync(settingsPath, 'utf-8');
+      settings = JSON.parse(content);
+    }
+    
+    settings.defaultProvider = provider;
+    settings.defaultModel = model;
+    
+    if (!settings.models) {
+      settings.models = [];
+    }
+    
+    const modelEntry = `${provider}/${model}`;
+    if (!settings.models.includes(modelEntry)) {
+      settings.models.unshift(modelEntry);
+    }
+    
+    fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
+    
+    if (VERBOSE) {
+      console.log(`[NuPI] Updated pi settings: provider=${provider}, model=${model}`);
+    }
+    
+    return true;
+  } catch (e) {
+    console.error(`[NuPI] Failed to update pi settings: ${e}`);
+    return false;
+  }
+}
+
+const nupiSyncInnerAITool = {
+  name: "nupi-sync-inner-ai",
+  label: "NuPI Sync Inner AI",
+  description: "Sync pi configuration to use the same AI provider/model as nezha's inner AI. Returns instructions for setting up the API key securely.",
+  parameters: Type.Object({}),
+  execute: async (_toolCallId: string, _params: any) => {
+    const innerAI = await getNezhaInnerAI();
+    
+    if (!innerAI) {
+      return {
+        content: [{ type: "text" as const, text: "No inner AI configured in nezha. Use 'nezha inner set-model <provider> [model]' to configure it first." }],
+        details: { error: true } as Record<string, unknown>,
+      };
+    }
+    
+    const success = await updatePiSettings(innerAI.provider, innerAI.model);
+    
+    if (success) {
+      const instructions = `✅ Pi configuration updated to match nezha's inner AI:
+Provider: ${innerAI.provider}
+Model: ${innerAI.model}
+
+🔐 SECURITY: To use this provider, you need to set the API key as an environment variable:
+
+For ${innerAI.provider}:
+  export OPENROUTER_API_KEY="your-api-key-here"
+
+You can get the API key from nezha's database or your provider's dashboard.
+
+Add this to your ~/.bashrc or ~/.zshrc to make it permanent:
+  echo 'export OPENROUTER_API_KEY="your-key"' >> ~/.bashrc
+
+Restart pi to use the new configuration.`;
+      
+      return {
+        content: [{ type: "text" as const, text: instructions }],
+        details: { provider: innerAI.provider, model: innerAI.model } as Record<string, unknown>,
+      };
+    } else {
+      return {
+        content: [{ type: "text" as const, text: "Failed to update pi configuration. Check permissions for ~/.pi/agent/settings.json" }],
+        details: { error: true } as Record<string, unknown>,
+      };
+    }
   },
 };
 
@@ -833,6 +931,7 @@ export default function nupiExtension(pi: ExtensionAPI) {
   pi.registerTool(nupiProjectTool);
   pi.registerTool(nupiVisitsTool);
   pi.registerTool(nupiStatsTool);
+  pi.registerTool(nupiSyncInnerAITool);
 
   pi.on("resources_discover", async () => {
     const skills = await getStartupSkills();
