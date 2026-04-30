@@ -132,8 +132,20 @@ Nezha (persistent brain via CLI)
 1. Start: Issue/task/(former) inter-review ID → problem found, solution planned
 2. Implement: Write the code
 3. Code Inter-Review: Other AI reviews the code (MANDATORY)
-4. Git Commit: MUST have [task:id] or [issue:id] AND [inter-review:id]
+4. READ REVIEW: Carefully examine ALL findings and suggestions
+5. IMPROVE: Address ALL issues found (especially critical/high severity)
+6. RE-REVIEW: Request new review after improvements
+7. ITERATE: Repeat steps 4-6 until:
+   - Review score >= 80/100
+   - NO critical or high severity issues remain
+   - All major suggestions addressed
+8. Git Commit: MUST have [task:id] or [issue:id] AND [inter-review:id]
 ```
+
+**⚠️ CRITICAL: NEVER commit with:**
+- Review score < 80/100
+- Any critical or high severity issues unaddressed
+- Ignoring review suggestions without justification
 
 **Commit Message Format (enforced by git hook):**
 ```

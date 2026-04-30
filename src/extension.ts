@@ -44,8 +44,12 @@ export function unregisterThinker(): void {
 
 const VERBOSE = process.env.NUPI_VERBOSE === 'true' || process.env.NODE_ENV !== 'production';
 
+// ✅ Pi session ID - the ONLY in-session identifier
+const SESSION_ID = process.env.AGENT_SESSION_ID || 'unknown-session';
+
 if (VERBOSE) {
   console.log(`[NuPI@${GIT_HASH}] Starting in verbose mode...`);
+  console.log(`[NuPI] Session ID: ${SESSION_ID}`);
 }
 
 const LOCAL_TASK_WHITELIST = [
@@ -1013,6 +1017,20 @@ When user asks complex questions or asks about planning/architecture/research:
     if (contextJson) {
       const contextSection = `\n\n## Current Context from Nezha\n\`\`\`json\n${contextJson}\n\`\`\`\n`;
       systemPrompt += contextSection;
+    }
+    
+    // ✅ NEW: Load project-onboarding skill for proper onboarding
+    try {
+      const onboardingSkill = await getSkillsForEvent('session_start');
+      if (onboardingSkill && onboardingSkill.length > 0) {
+        const skillContent = onboardingSkill.map(s => 
+          `## ${s.name}\n${s.instructions || ''}`
+        ).join('\n\n');
+        systemPrompt += `\n\n## Project Onboarding Knowledge\n${skillContent}\n`;
+        console.log(`[NuPI] Loaded ${onboardingSkill.length} onboarding skill(s)`);
+      }
+    } catch (err) {
+      console.warn(`[NuPI] Failed to load onboarding skills: ${err}`);
     }
     
     return {
